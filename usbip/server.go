@@ -1,12 +1,18 @@
 package usbip
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/ntchjb/usbip-virtual-device/usb"
+	"github.com/ntchjb/usbip-virtual-device/usbip/handler"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 )
 
 type USBIPServer interface {
@@ -18,11 +24,13 @@ type USBIPServerConfig struct {
 	ListenAddress        string
 	TCPConnectionTimeout time.Duration
 	MaxTCPConnection     uint
+	URBWorkerConfig      handler.WorkerPoolConfig
 }
 
 type usbIPServerImpl struct {
-	conf   USBIPServerConfig
-	logger *slog.Logger
+	conf      USBIPServerConfig
+	logger    *slog.Logger
+	registrar usb.DeviceRegistrar
 
 	listener net.Listener
 	connWg   sync.WaitGroup
@@ -33,13 +41,14 @@ type usbIPServerImpl struct {
 // which is a TCP server using net package.
 //
 // listenAddress uses format of [ip:port] such as "127.0.0.1:3456", ":3456"
-func NewUSBIPServer(config USBIPServerConfig, logger *slog.Logger) USBIPServer {
+func NewUSBIPServer(config USBIPServerConfig, registrar usb.DeviceRegistrar, logger *slog.Logger) USBIPServer {
 	if logger == nil {
 		panic(fmt.Errorf("a logger instance required for USB/IP server"))
 	}
 	return &usbIPServerImpl{
-		conf:   config,
-		logger: logger,
+		conf:      config,
+		logger:    logger,
+		registrar: registrar,
 	}
 }
 
@@ -84,6 +93,7 @@ func (s *usbIPServerImpl) Open() error {
 				go func() {
 					defer connCount.Add(-1)
 					defer s.connWg.Done()
+					s.logger.Info("new connection established", "addr", conn.RemoteAddr())
 					s.handleConnection(conn)
 				}()
 			}
@@ -101,15 +111,82 @@ func (s *usbIPServerImpl) Close() error {
 	if listenerErr != nil {
 		err = fmt.Errorf("cannot close TCP listener: %w", listenerErr)
 	}
+	s.logger.Info("Closing server, waiting for all devices to be disconnected. Please make sure that USB/IP client-side devices are all unbinded and disconnected from USB/IP server")
 	s.connWg.Wait()
+	s.logger.Info("Server closed, bye.")
 
 	return err
 }
 
 func (s *usbIPServerImpl) handleConnection(conn net.Conn) {
+	queue := handler.NewURBQueue()
+	worker := handler.NewWorkerPool(s.conf.URBWorkerConfig, queue, conn, s.logger)
+	reqHandler := handler.NewRequestHandler(conn, s.registrar, worker, s.logger)
+
 	defer conn.Close()
+	defer worker.Stop()
 
-	// TODO: handle data in this TCP connection
+	for {
+		switch reqHandler.GetHandlerLevel() {
+		case handler.HANDLER_LEVEL_OP:
+			if err := s.handleOp(reqHandler); err != nil {
+				if !errors.Is(err, io.EOF) {
+					s.logger.Error("unable to handle Op request", "err", err)
+				}
+				return
+			}
+		case handler.HANDLER_LEVEL_CMD:
+			if err := s.handleCmd(reqHandler); err != nil {
+				s.logger.Error("unable to handle Cmd request", "err", err)
+				return
+			}
+		}
+	}
+}
 
-	s.logger.Debug("received TCP connection", "addr", conn.RemoteAddr())
+func (s *usbIPServerImpl) handleOp(reqHandler handler.RequestHandler) error {
+	opHeader, err := reqHandler.HandleOpHeader()
+	if err != nil {
+		return fmt.Errorf("unable to handle OpHeader: %w", err)
+	}
+
+	switch opHeader.CommandOrReplyCode {
+	case protocol.OP_REQ_DEVLIST:
+		if err := reqHandler.HandleOpDevList(opHeader); err != nil {
+			return fmt.Errorf("error occurred when handling OpDevList: %w", err)
+		}
+		// Close TCP connection after replied
+		return io.EOF
+	case protocol.OP_REQ_IMPORT:
+		if err := reqHandler.HandleOpImport(opHeader); err != nil {
+			return fmt.Errorf("error occurred when handling OpImport: %w", err)
+		}
+		// OP_REQ_IMPORT does not close TCP connection
+	default:
+		return fmt.Errorf("unknown operation: %x", opHeader.CommandOrReplyCode)
+	}
+
+	return nil
+}
+
+func (s *usbIPServerImpl) handleCmd(reqHandler handler.RequestHandler) error {
+	cmdHeader, err := reqHandler.HandleCmdHeader()
+	if err != nil {
+		return fmt.Errorf("unable to handle CmdHeader: %w", err)
+	}
+
+	switch cmdHeader.Command {
+	case protocol.CMD_SUBMIT:
+		if err := reqHandler.HandleCmdSubmit(cmdHeader); err != nil {
+			return fmt.Errorf("unable to handle CmdSubmit: %w", err)
+		}
+	case protocol.CMD_UNLINK:
+		if err := reqHandler.HandleCmdUnlink(cmdHeader); err != nil {
+			return fmt.Errorf("unable to handle CmdUnlink: %w", err)
+		}
+	default:
+		return fmt.Errorf("unknown command: %x", cmdHeader.Command)
+	}
+
+	return nil
 }

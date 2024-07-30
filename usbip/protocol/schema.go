@@ -1,19 +1,10 @@
 package protocol
 
-import (
-	"encoding"
-)
+import "io"
 
 type Serializer interface {
-	encoding.BinaryMarshaler
-	encoding.BinaryUnmarshaler
-
-	// UnmarshalBinaryWithLength is used to keep track of bytes read to support schema with dynamic data size. This function promotes code reusability.
-	UnmarshalBinaryWithLength(data []byte) (int, error)
-	// MarshalBinaryPreAlloc is used to marshal data and store in pre-allocated `data` byte array. It reduces data copies when need to reuse code.
-	MarshalBinaryPreAlloc(data []byte) error
-	// Calculate total data length when marshaling given schema.
-	Length() int
+	Decode(reader io.Reader) error
+	Encode(writer io.Writer) error
 }
 
 type Operation uint16
@@ -125,7 +116,7 @@ const (
 
 // Command header for all 4 commands
 type CmdHeader struct {
-	Command uint32
+	Command Command
 	// sequential number that identifies requests and corresponding responses; incremented per connection
 	SeqNum uint32
 	// specifies a remote USB device uniquely instead of busnum and devnum; for client (request), this value is ((busnum << 16) | devnum); for server (response), this shall be set to 0

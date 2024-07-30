@@ -3,124 +3,64 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+
+	"github.com/ntchjb/usbip-virtual-device/usbip/stream"
 )
 
-func (c *CmdUnlink) MarshalBinaryPreAlloc(data []byte) error {
-	if len(data) < c.Length() {
-		return fmt.Errorf("data too short to allocate for CmdUnlink, need %d, got %d", c.Length(), len(data))
+// Decode read data from stream and store in struct.
+// Note that this function does not decode CmdHeader, which should be done already during connection handling
+func (c *CmdUnlink) Decode(reader io.Reader) error {
+	buf, err := stream.Read(reader, CMD_UNLINK_STATIC_FIELDS_LENGTH)
+	if err != nil {
+		return fmt.Errorf("unable to read CmdUnlink from stream: %w", err)
 	}
 
-	headerLength := c.CmdHeader.Length()
-	if err := c.CmdHeader.MarshalBinaryPreAlloc(data[:headerLength]); err != nil {
-		return fmt.Errorf("unable to allocate CmdHeader: %w", err)
-	}
-
-	binary.BigEndian.PutUint32(data[headerLength:headerLength+4], c.UnlinkSeqNum)
-	copy(data[headerLength+4:headerLength+28], c.Padding[:])
+	c.UnlinkSeqNum = binary.BigEndian.Uint32(buf[:4])
+	copy(c.Padding[:], buf[4:28])
 
 	return nil
 }
 
-func (c *CmdUnlink) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, c.Length())
+// Encode writes data from struct to stream.
+// Note that this function does not encode CmdHeader, which should be done already during connection handling
+func (c *CmdUnlink) Encode(writer io.Writer) error {
+	buf := make([]byte, CMD_UNLINK_STATIC_FIELDS_LENGTH)
 
-	if err := c.MarshalBinaryPreAlloc(data); err != nil {
-		return nil, fmt.Errorf("unable to allocate CmdUnlink: %w", err)
+	binary.BigEndian.PutUint32(buf[:4], c.UnlinkSeqNum)
+	copy(buf[4:28], c.Padding[:])
+
+	if err := stream.Write(writer, buf); err != nil {
+		return fmt.Errorf("unable to write CmdUnlink to stream: %w", err)
 	}
-
-	return data, nil
-}
-
-func (c *CmdUnlink) UnmarshalBinaryWithLength(data []byte) (int, error) {
-	var length int
-
-	if len(data) < CMD_HEADER_LENGTH {
-		return 0, fmt.Errorf("data too short for CmdHeader, need %d, got %d", c.Length(), len(data))
-	}
-
-	cmdHeaderLength, err := c.CmdHeader.UnmarshalBinaryWithLength(data)
-	if err != nil {
-		return 0, fmt.Errorf("unable to unmarshal CmdHeader: %w", err)
-	}
-	length += cmdHeaderLength
-
-	if len(data[length:]) < CMD_UNLINK_STATIC_FIELDS_LENGTH {
-		return 0, fmt.Errorf("data too short for static fields of CmdUnlink, need %d, got %d", CMD_UNLINK_STATIC_FIELDS_LENGTH, len(data))
-	}
-
-	c.UnlinkSeqNum = binary.BigEndian.Uint32(data[length : length+4])
-	copy(c.Padding[:], data[length+4:length+28])
-	length += CMD_UNLINK_STATIC_FIELDS_LENGTH
-
-	return length, nil
-}
-
-func (c *CmdUnlink) UnmarshalBinary(data []byte) error {
-	_, err := c.UnmarshalBinaryWithLength(data)
-
-	return err
-}
-
-func (c *CmdUnlink) Length() int {
-	return CMD_HEADER_LENGTH + CMD_UNLINK_STATIC_FIELDS_LENGTH
-}
-
-func (c *RetUnlink) MarshalBinaryPreAlloc(data []byte) error {
-	if len(data) < c.Length() {
-		return fmt.Errorf("data too short to allocate for RetUnlink, need %d, got %d", c.Length(), len(data))
-	}
-
-	headerLength := c.CmdHeader.Length()
-	if err := c.CmdHeader.MarshalBinaryPreAlloc(data[:headerLength]); err != nil {
-		return fmt.Errorf("unable to allocate CmdHeader: %w", err)
-	}
-
-	binary.BigEndian.PutUint32(data[headerLength:headerLength+4], c.Status)
-	copy(data[headerLength+4:headerLength+28], c.Padding[:])
 
 	return nil
 }
 
-func (c *RetUnlink) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, c.Length())
-
-	if err := c.MarshalBinaryPreAlloc(data); err != nil {
-		return nil, fmt.Errorf("unable to allocate RetUnlink: %w", err)
-	}
-
-	return data, nil
-}
-
-func (c *RetUnlink) UnmarshalBinaryWithLength(data []byte) (int, error) {
-	var length int
-
-	if len(data) < CMD_HEADER_LENGTH {
-		return 0, fmt.Errorf("data too short for CmdHeader, need %d, got %d", c.Length(), len(data))
-	}
-
-	cmdHeaderLength, err := c.CmdHeader.UnmarshalBinaryWithLength(data)
+// Decode read data from stream and store in struct.
+// Note that this function does not decode CmdHeader, which should be done already during connection handling
+func (c *RetUnlink) Decode(reader io.Reader) error {
+	buf, err := stream.Read(reader, RET_UNLINK_STATIC_FIELDS_LENGTH)
 	if err != nil {
-		return 0, fmt.Errorf("unable to unmarshal CmdHeader: %w", err)
-	}
-	length += cmdHeaderLength
-
-	if len(data[length:]) < RET_UNLINK_STATIC_FIELDS_LENGTH {
-		return 0, fmt.Errorf("data too short for static fields of RetUnlink, need %d, got %d", RET_UNLINK_STATIC_FIELDS_LENGTH, len(data))
+		return fmt.Errorf("unable to read RetUnlink from stream: %w", err)
 	}
 
-	c.Status = binary.BigEndian.Uint32(data[length : length+4])
-	copy(c.Padding[:], data[length+4:length+28])
-	length += RET_UNLINK_STATIC_FIELDS_LENGTH
+	c.Status = binary.BigEndian.Uint32(buf[:4])
+	copy(c.Padding[:], buf[4:28])
 
-	return length, nil
+	return nil
 }
 
-func (c *RetUnlink) UnmarshalBinary(data []byte) error {
-	_, err := c.UnmarshalBinaryWithLength(data)
+// Encode writes data from struct to stream.
+// Note that this function does not encode CmdHeader, which should be done already during connection handling
+func (c *RetUnlink) Encode(writer io.Writer) error {
+	buf := make([]byte, RET_UNLINK_STATIC_FIELDS_LENGTH)
+	binary.BigEndian.PutUint32(buf[:4], c.Status)
+	copy(buf[4:28], c.Padding[:])
 
-	return err
-}
+	if err := stream.Write(writer, buf); err != nil {
+		return fmt.Errorf("unable to write RetUnlink to stream: %w", err)
+	}
 
-func (c *RetUnlink) Length() int {
-	return CMD_HEADER_LENGTH + RET_UNLINK_STATIC_FIELDS_LENGTH
+	return nil
 }

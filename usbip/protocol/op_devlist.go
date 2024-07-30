@@ -3,84 +3,46 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+
+	"github.com/ntchjb/usbip-virtual-device/usbip/stream"
 )
 
-func (op *OpRepDevList) MarshalBinaryPreAlloc(data []byte) error {
-	if len(data) < op.Length() {
-		return fmt.Errorf("data too short to allocate for OpRepDevList, need %d, got %d", op.Length(), len(data))
+// Decode read data from stream and store in struct.
+// Note that this function does not decode OpHeader, which should be done already during connection handling
+func (op *OpRepDevList) Decode(reader io.Reader) error {
+	deviceCountBuf, err := stream.Read(reader, 4)
+	if err != nil {
+		return fmt.Errorf("unable to read device count buf from stream: %w", err)
 	}
-
-	if err := op.OpHeader.MarshalBinaryPreAlloc(data[:OP_HEADER_LENGTH]); err != nil {
-		return fmt.Errorf("unable to allocate OpHeader: %w", err)
-	}
-	binary.BigEndian.PutUint32(data[OP_HEADER_LENGTH:OP_HEADER_LENGTH+4], op.DeviceCount)
-
-	var prevBNumInterfaces uint8
-	for i, device := range op.Devices {
-		startIdx := OP_HEADER_LENGTH + 4 + i*DEVICE_INFO_TRUNCATED_LENGTH + int(prevBNumInterfaces)*DEVICE_INTERFACE_LENGTH
-		if err := device.MarshalBinaryPreAlloc(data[startIdx : startIdx+DEVICE_INFO_TRUNCATED_LENGTH+int(device.BNumInterfaces)*DEVICE_INTERFACE_LENGTH]); err != nil {
-			return fmt.Errorf("unable to allocate DeviceInfo #%d: %w", i, err)
+	op.DeviceCount = binary.BigEndian.Uint32(deviceCountBuf)
+	op.Devices = make([]DeviceInfo, op.DeviceCount)
+	for i := 0; i < int(op.DeviceCount); i++ {
+		if err := op.Devices[i].Decode(reader); err != nil {
+			return fmt.Errorf("unable to decode device info: %w", err)
 		}
-		prevBNumInterfaces = device.BNumInterfaces
 	}
 
 	return nil
 }
 
-func (op *OpRepDevList) MarshalBinary() (data []byte, err error) {
-	dataLength := op.Length()
-	data = make([]byte, dataLength)
-
-	if err := op.MarshalBinaryPreAlloc(data); err != nil {
-		return nil, fmt.Errorf("unable to allocate data for OpRepDevList: %w", err)
+// Encode writes data from struct to stream.
+// Note that this function does not encode OpHeader, which should be done already during connection handling
+func (op *OpRepDevList) Encode(writer io.Writer) error {
+	deviceCountBuf := make([]byte, 4)
+	if int(op.DeviceCount) != len(op.Devices) {
+		return fmt.Errorf("expected device count does not match actual device count, expected %d, got %d", op.DeviceCount, len(op.Devices))
+	}
+	binary.BigEndian.PutUint32(deviceCountBuf, op.DeviceCount)
+	if err := stream.Write(writer, deviceCountBuf); err != nil {
+		return fmt.Errorf("unable to write deviceCount to stream: %w", err)
 	}
 
-	return data, nil
-}
-
-func (op *OpRepDevList) UnmarshalBinaryWithLength(data []byte) (int, error) {
-	var length int
-
-	// OpHeader
-	opHeaderLen, err := op.OpHeader.UnmarshalBinaryWithLength(data)
-	if err != nil {
-		return 0, fmt.Errorf("unable to unmarshal OpHeader: %w", err)
-	}
-	length += opHeaderLen
-
-	// DeviceCount
-	if len(data[opHeaderLen:]) < 4 {
-		return 0, fmt.Errorf("data too short for DeviceCount, need 4, got %d", len(data[8:]))
-	}
-	op.DeviceCount = binary.BigEndian.Uint32(data[opHeaderLen:])
-	length += 4
-
-	// Devices
-	for i, startIdx := 0, length; i < int(op.DeviceCount); i++ {
-		device := DeviceInfo{}
-		deviceInfoLength, err := device.UnmarshalBinaryWithLength(data[startIdx:])
-		if err != nil {
-			return 0, fmt.Errorf("unable to unmarshal DeviceInfo #%d: %w", i, err)
-		}
-		startIdx += deviceInfoLength
-		length += deviceInfoLength
-		op.Devices = append(op.Devices, device)
-	}
-
-	return length, nil
-}
-
-func (op *OpRepDevList) UnmarshalBinary(data []byte) error {
-	_, err := op.UnmarshalBinaryWithLength(data)
-
-	return err
-}
-
-func (op *OpRepDevList) Length() int {
-	dataLength := op.OpHeader.Length()
 	for _, device := range op.Devices {
-		dataLength += DEVICE_INFO_TRUNCATED_LENGTH + int(device.BNumInterfaces)*DEVICE_INTERFACE_LENGTH
+		if err := device.Encode(writer); err != nil {
+			return fmt.Errorf("unable to encode DeviceInfo: %w", err)
+		}
 	}
 
-	return dataLength
+	return nil
 }

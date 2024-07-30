@@ -3,54 +3,40 @@ package protocol
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+
+	"github.com/ntchjb/usbip-virtual-device/usbip/stream"
 )
 
-func (c *ISOPacketDescriptor) MarshalBinaryPreAlloc(data []byte) error {
-	if len(data) < c.Length() {
-		return fmt.Errorf("data too short to allocate for ISOPacketDescriptor, need %d, got %d", c.Length(), len(data))
+// Decode read data from stream and store in struct.
+// Note that this function does not decode CmdHeader, which should be done already during connection handling
+func (c *ISOPacketDescriptor) Decode(reader io.Reader) error {
+	buf, err := stream.Read(reader, ISO_PACKET_DESCRIPTOR_LENGTH)
+	if err != nil {
+		return fmt.Errorf("unable to read ISOPacketDescriptor from stream: %w", err)
 	}
 
-	binary.BigEndian.PutUint32(data[:4], c.Offset)
-	binary.BigEndian.PutUint32(data[4:8], c.ExpectedLength)
-	binary.BigEndian.PutUint32(data[8:12], c.ActualLength)
-	binary.BigEndian.PutUint32(data[12:16], c.Status)
+	c.Offset = binary.BigEndian.Uint32(buf[:4])
+	c.ExpectedLength = binary.BigEndian.Uint32(buf[4:8])
+	c.ActualLength = binary.BigEndian.Uint32(buf[8:12])
+	c.Status = binary.BigEndian.Uint32(buf[12:16])
 
 	return nil
 }
 
-func (c *ISOPacketDescriptor) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, c.Length())
+// Encode writes data from struct to stream.
+// Note that this function does not encode CmdHeader, which should be done already during connection handling
+func (c *ISOPacketDescriptor) Encode(writer io.Writer) error {
+	buf := make([]byte, ISO_PACKET_DESCRIPTOR_LENGTH)
 
-	if err := c.MarshalBinaryPreAlloc(data); err != nil {
-		return nil, fmt.Errorf("unable to allocate ISOPacketDescriptor: %w", err)
+	binary.BigEndian.PutUint32(buf[:4], c.Offset)
+	binary.BigEndian.PutUint32(buf[4:8], c.ExpectedLength)
+	binary.BigEndian.PutUint32(buf[8:12], c.ActualLength)
+	binary.BigEndian.PutUint32(buf[12:16], c.Status)
+
+	if err := stream.Write(writer, buf); err != nil {
+		return fmt.Errorf("unable to write ISOPacketDescriptor to stream: %w", err)
 	}
 
-	return data, nil
-}
-
-func (c *ISOPacketDescriptor) UnmarshalBinaryWithLength(data []byte) (int, error) {
-	var length int
-
-	if len(data) < ISO_PACKET_DESCRIPTOR_LENGTH {
-		return 0, fmt.Errorf("data too short for ISOPacketDescriptor, need %d, got %d", ISO_PACKET_DESCRIPTOR_LENGTH, len(data))
-	}
-
-	c.Offset = binary.BigEndian.Uint32(data[:4])
-	c.ExpectedLength = binary.BigEndian.Uint32(data[4:8])
-	c.ActualLength = binary.BigEndian.Uint32(data[8:12])
-	c.Status = binary.BigEndian.Uint32(data[12:16])
-
-	length += ISO_PACKET_DESCRIPTOR_LENGTH
-
-	return length, nil
-}
-
-func (c *ISOPacketDescriptor) UnmarshalBinary(data []byte) error {
-	_, err := c.UnmarshalBinaryWithLength(data)
-
-	return err
-}
-
-func (c *ISOPacketDescriptor) Length() int {
-	return ISO_PACKET_DESCRIPTOR_LENGTH
+	return nil
 }
