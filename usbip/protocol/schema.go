@@ -69,13 +69,20 @@ type DeviceInfoTruncated struct {
 	// Path of the device on the host exporting the USB device, string closed with zero byte, e.g. “/sys/devices/pci0000:00/0000:00:1d.1/usb3/3-2” The unused bytes shall be filled with zero bytes.
 	Path [256]byte
 	// Bus ID of the exported device, string closed with zero byte, e.g. “3-2”. The unused bytes shall be filled with zero bytes.
-	BusID               [32]byte
-	BusNum              uint32
-	DevNum              uint32
-	Speed               uint32
-	IDVendor            uint16
-	IDProduct           uint16
-	BCDDevice           uint16
+	BusID [32]byte
+	// Bus number of the device
+	BusNum uint32
+	// Device number of given bus
+	DevNum uint32
+	// Speed of this device
+	Speed uint32
+	// Vendor ID
+	IDVendor uint16
+	// Product ID
+	IDProduct uint16
+	// Device-defined revision number
+	BCDDevice uint16
+	// Device class
 	BDeviceClass        uint8
 	BDeviceSubclass     uint8
 	BDeviceProtocol     uint8
@@ -155,7 +162,7 @@ type CmdSubmit struct {
 	// maximum time for the request on the server-side host controller
 	Interval uint32
 	// data bytes for USB setup, filled with zeros if not used
-	Setup uint64
+	Setup [8]byte
 	// TransferBuffer has variable length
 	// direction OUT -> Length = len(TransferBufferLength),
 	// direction IN -> Length 0
@@ -205,7 +212,7 @@ type CmdUnlink struct {
 type RetUnlink struct {
 	CmdHeader
 	// This is similar to the status of USBIP_RET_SUBMIT (share the same memory offset). When UNLINK is successful, status is -ECONNRESET; when USBIP_CMD_UNLINK is after USBIP_RET_SUBMIT status is 0
-	Status uint32
+	Status int32
 	// padding, shall be set to 0
 	Padding [24]byte
 }

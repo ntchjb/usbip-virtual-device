@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -128,6 +129,8 @@ func (op *requestHandlerImpl) HandleOpImport(opHeader protocol.OpHeader) error {
 	op.worker.Start()
 
 	op.level = HANDLER_LEVEL_CMD
+
+	op.logger.Info("Device attached", "busID", hex.EncodeToString(opReqImport.BusID[:]), "id", fmt.Sprintf("%04x:%04x", reply.DeviceInfo.IDVendor, reply.DeviceInfo.IDProduct))
 	return nil
 }
 
@@ -146,7 +149,15 @@ func (op *requestHandlerImpl) HandleCmdSubmit(cmdHeader protocol.CmdHeader) erro
 }
 
 func (op *requestHandlerImpl) HandleCmdUnlink(cmdHeader protocol.CmdHeader) error {
-	op.worker.Unlink(cmdHeader.SeqNum)
+	cmdUnlink := protocol.CmdUnlink{
+		CmdHeader: cmdHeader,
+	}
+	if err := cmdUnlink.Decode(op.conn); err != nil {
+		return fmt.Errorf("unable to decode CmdUnlink: %w", err)
+	}
+	if err := op.worker.Unlink(cmdUnlink); err != nil {
+		return fmt.Errorf("unable to unlink with seqNum %d: %w", cmdHeader.SeqNum, err)
+	}
 
 	return nil
 }

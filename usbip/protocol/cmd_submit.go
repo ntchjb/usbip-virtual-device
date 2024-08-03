@@ -21,7 +21,7 @@ func (c *CmdSubmit) Decode(reader io.Reader) error {
 	c.StartFrame = binary.BigEndian.Uint32(staticFieldBuf[8:12])
 	c.NumberOfPackets = binary.BigEndian.Uint32(staticFieldBuf[12:16])
 	c.Interval = binary.BigEndian.Uint32(staticFieldBuf[16:20])
-	c.Setup = binary.BigEndian.Uint64(staticFieldBuf[20:28])
+	copy(c.Setup[:], staticFieldBuf[20:28])
 
 	if c.TransferBufferLength > 0 && c.Direction == DIR_OUT {
 		transferBuf, err := stream.Read(reader, int(c.TransferBufferLength))
@@ -61,7 +61,7 @@ func (c *CmdSubmit) Encode(writer io.Writer) error {
 	binary.BigEndian.PutUint32(buf[8:12], c.StartFrame)
 	binary.BigEndian.PutUint32(buf[12:16], c.NumberOfPackets)
 	binary.BigEndian.PutUint32(buf[16:20], c.Interval)
-	binary.BigEndian.PutUint64(buf[20:28], c.Setup)
+	copy(buf[20:28], c.Setup[:])
 
 	if err := stream.Write(writer, buf); err != nil {
 		return fmt.Errorf("unable to write CmdSubmit static fields to stream: %w", err)

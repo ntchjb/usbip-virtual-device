@@ -1,15 +1,22 @@
 package usb
 
-import "github.com/ntchjb/usbip-virtual-device/usbip/protocol"
-
-type BusID [32]byte
+import (
+	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+)
 
 type URBProcessor interface {
-	ProcessSubmit(data protocol.CmdSubmit) protocol.RetSubmit
+	Process(data protocol.CmdSubmit) protocol.RetSubmit
 }
 
+// Device represents a USB device and its logic
 type Device interface {
-	GetBusID() BusID
+	// SetBusID assigns bus ID to this device. BusID should be assigned by device registrar
+	SetBusID(busNum, devNum uint)
+	// GetBusID returns bus ID of this device
+	GetBusID() usbprotocol.BusID
+	// GetDeviceInfo returns device information used by OpDevList
 	GetDeviceInfo() protocol.DeviceInfo
+	// GetURBProcessor returns an instance of processor of this device, used by handler's worker pool
 	GetURBProcessor() URBProcessor
 }

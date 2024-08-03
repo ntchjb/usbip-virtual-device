@@ -45,7 +45,7 @@ func (c *RetUnlink) Decode(reader io.Reader) error {
 		return fmt.Errorf("unable to read RetUnlink from stream: %w", err)
 	}
 
-	c.Status = binary.BigEndian.Uint32(buf[:4])
+	c.Status = int32(binary.BigEndian.Uint32(buf[:4]))
 	copy(c.Padding[:], buf[4:28])
 
 	return nil
@@ -55,7 +55,7 @@ func (c *RetUnlink) Decode(reader io.Reader) error {
 // Note that this function does not encode CmdHeader, which should be done already during connection handling
 func (c *RetUnlink) Encode(writer io.Writer) error {
 	buf := make([]byte, RET_UNLINK_STATIC_FIELDS_LENGTH)
-	binary.BigEndian.PutUint32(buf[:4], c.Status)
+	binary.BigEndian.PutUint32(buf[:4], uint32(c.Status))
 	copy(buf[4:28], c.Padding[:])
 
 	if err := stream.Write(writer, buf); err != nil {
