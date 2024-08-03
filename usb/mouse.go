@@ -51,25 +51,32 @@ func NewGenericHIDMouseDevice(logger *slog.Logger) Device {
 		logger: logger,
 		deviceInfo: protocol.DeviceInfo{
 			DeviceInfoTruncated: protocol.DeviceInfoTruncated{
-				Speed:               usbprotocol.SpeedUSB2High,
+				Speed:               usbprotocol.SPEED_USB2_HIGH,
 				IDVendor:            0x0ff0, // a random vendor ID
 				IDProduct:           0x0123, // a random product ID
 				BCDDevice:           1,
-				BDeviceClass:        usbprotocol.ClassBasedOnInterface,
-				BDeviceSubclass:     usbprotocol.SubclassNone,
-				BDeviceProtocol:     usbprotocol.ProtocolNone,
+				BDeviceClass:        usbprotocol.CLASS_BASEDON_INTERFACE,
+				BDeviceSubclass:     usbprotocol.SUBCLASS_NONE,
+				BDeviceProtocol:     usbprotocol.PROTOCOL_NONE,
 				BConfigurationValue: 1,
 				BNumConfigurations:  1,
 				BNumInterfaces:      1,
 			},
 			Interfaces: []protocol.DeviceInterface{
 				{
-					BInterfaceClass:    usbprotocol.ClassHID,
-					BInterfaceSubclass: usbprotocol.SubclassNone,
-					BInterfaceProtocol: usbprotocol.HIDProtocolMouse,
+					BInterfaceClass:    usbprotocol.CLASS_HID,
+					BInterfaceSubclass: usbprotocol.SUBCLASS_NONE,
+					BInterfaceProtocol: usbprotocol.PROTOCOL_HID_MOUSE,
 				},
 			},
 		},
+	}
+}
+
+func (g *genericHIDMouseDevice) GetWorkerPoolProfile() WorkerPoolProfile {
+	return WorkerPoolProfile{
+		MaximumProcWorkers:  1,
+		MaximumReplyWorkers: 1,
 	}
 }
 
@@ -93,13 +100,9 @@ func (g *genericHIDMouseDevice) GetDeviceInfo() protocol.DeviceInfo {
 	return g.deviceInfo
 }
 
-func (g *genericHIDMouseDevice) GetURBProcessor() URBProcessor {
-	return g
-}
-
 func (g *genericHIDMouseDevice) Process(data protocol.CmdSubmit) protocol.RetSubmit {
 	switch data.EndpointNumber {
-	case usbprotocol.EndpointControl:
+	case usbprotocol.ENDPOINT_CONTROL:
 		{
 			var setupPacket usbprotocol.SetupPacket
 			if err := setupPacket.Decode(bytes.NewBuffer(data.Setup[:])); err != nil {
@@ -115,7 +118,7 @@ func (g *genericHIDMouseDevice) Process(data protocol.CmdSubmit) protocol.RetSub
 
 			return g.createSuccessRetSubmit(data.CmdHeader, retData)
 		}
-	case usbprotocol.EndpointDevToHost:
+	case usbprotocol.ENDPOINT_DEV_TO_HOST:
 		{
 			retData, err := g.proceeHIDData(data)
 			if err != nil {
@@ -160,11 +163,11 @@ func (g *genericHIDMouseDevice) createSuccessRetSubmit(header protocol.CmdHeader
 func (g *genericHIDMouseDevice) getDeviceDescriptor() usbprotocol.StandardDeviceDescriptor {
 	return usbprotocol.StandardDeviceDescriptor{
 		BLength:            usbprotocol.STANDARD_DEVICE_DESCRIPTOR_LENGTH,
-		BDescriptorType:    usbprotocol.DescriptorTypeDevice,
-		BCDUSB:             usbprotocol.HIDSpecVersion,
-		BDeviceClass:       usbprotocol.ClassBasedOnInterface,
-		BDeviceSubClass:    usbprotocol.SubclassNone,
-		BDeviceProtocol:    usbprotocol.ProtocolNone,
+		BDescriptorType:    usbprotocol.DESCRIPTOR_TYPE_DEVICE,
+		BCDUSB:             usbprotocol.HID_SPEC_VERSION,
+		BDeviceClass:       usbprotocol.CLASS_BASEDON_INTERFACE,
+		BDeviceSubClass:    usbprotocol.SUBCLASS_NONE,
+		BDeviceProtocol:    usbprotocol.PROTOCOL_NONE,
 		BMaxPacketSize:     8,
 		IDVendor:           g.deviceInfo.IDVendor,
 		IDProduct:          g.deviceInfo.IDProduct,
@@ -179,7 +182,7 @@ func (g *genericHIDMouseDevice) getDeviceDescriptor() usbprotocol.StandardDevice
 func (g *genericHIDMouseDevice) getConfigurationDescriptor(totalDetailLength uint16) usbprotocol.StandardConfigurationDescriptor {
 	return usbprotocol.StandardConfigurationDescriptor{
 		BLength:             usbprotocol.STANDARD_CONFIGURATION_DESCRIPTOR_LENGTH,
-		BDescriptorType:     usbprotocol.DescriptorTypeConfiguration,
+		BDescriptorType:     usbprotocol.DESCRIPTOR_TYPE_CONFIGURATION,
 		WTotalLength:        usbprotocol.STANDARD_CONFIGURATION_DESCRIPTOR_LENGTH + totalDetailLength,
 		BNumInterfaces:      1,
 		BConfigurationValue: 1,
@@ -190,13 +193,13 @@ func (g *genericHIDMouseDevice) getConfigurationDescriptor(totalDetailLength uin
 func (g *genericHIDMouseDevice) getInterfaceDescriptor() usbprotocol.StandardInterfaceDescriptor {
 	return usbprotocol.StandardInterfaceDescriptor{
 		BLength:            usbprotocol.STANDARD_INTERFACE_DESCRIPTOR_LENGTH,
-		BDescriptorType:    usbprotocol.DescriptorTypeInterface,
+		BDescriptorType:    usbprotocol.DESCRIPTOR_TYPE_INTERFACE,
 		BInterfaceNumber:   1,
 		BAlternateSetting:  0,
 		BNumEndpoints:      1,
-		BInterfaceClass:    usbprotocol.ClassHID,
-		BInterfaceSubClass: usbprotocol.HIDSubclassBootInterface,
-		BInterfaceProtocol: usbprotocol.HIDProtocolMouse,
+		BInterfaceClass:    usbprotocol.CLASS_HID,
+		BInterfaceSubClass: usbprotocol.SUBCLASS_HID_BOOT_INTERFACE,
+		BInterfaceProtocol: usbprotocol.PROTOCOL_HID_MOUSE,
 		IInterface:         5, // String descriptor
 	}
 }
@@ -205,7 +208,7 @@ func (g *genericHIDMouseDevice) getEndpointDescriptor() []usbprotocol.StandardEn
 	return []usbprotocol.StandardEndpointDescriptor{
 		{
 			BLength:          usbprotocol.STANDARD_ENDPOINT_DESCRIPTOR_LENGTH,
-			BDescriptorType:  usbprotocol.DescriptorTypeEndpoint,
+			BDescriptorType:  usbprotocol.DESCRIPTOR_TYPE_ENDPOINT,
 			BEndpointAddress: 0b10000001,
 			BMAttributes:     0b00000011,
 			WMaxPacketSize:   128,
@@ -217,11 +220,11 @@ func (g *genericHIDMouseDevice) getEndpointDescriptor() []usbprotocol.StandardEn
 func (g *genericHIDMouseDevice) getHIDDescriptor(hidReportLength uint16) usbprotocol.HIDDescriptor {
 	return usbprotocol.HIDDescriptor{
 		BLength:              usbprotocol.HID_DESCRIPTOR_LENGTH,
-		BDescriptorType:      usbprotocol.DescriptorTypeHID,
-		BCDHID:               usbprotocol.HIDClassSpecVersion,
+		BDescriptorType:      usbprotocol.DESCRIPTOR_TYPE_HID,
+		BCDHID:               usbprotocol.HID_CLASS_SPEC_VERSION,
 		BCountryCode:         0,
 		BNumDescriptors:      1,
-		BClassDescriptorType: usbprotocol.DescriptorTypeHIDReport,
+		BClassDescriptorType: usbprotocol.DESCRIPTOR_TYPE_HID_REPORT,
 		WDescriptorLength:    hidReportLength,
 	}
 }
@@ -247,21 +250,21 @@ func (g *genericHIDMouseDevice) getStringDescriptor(index uint8) usbprotocol.Str
 
 	return usbprotocol.StringDescriptor{
 		BLength:         uint8(2 + len(content)*2),
-		BDescriptorType: usbprotocol.DescriptorTypeString,
+		BDescriptorType: usbprotocol.DESCRIPTOR_TYPE_STRING,
 		Content:         content,
 	}
 }
 
 func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.DescriptorType, index uint8) ([]byte, error) {
 	switch descriptorType {
-	case usbprotocol.DescriptorTypeDevice:
+	case usbprotocol.DESCRIPTOR_TYPE_DEVICE:
 		desc := g.getDeviceDescriptor()
 		buf := make([]byte, usbprotocol.STANDARD_DEVICE_DESCRIPTOR_LENGTH)
 		if err := desc.Encode(bytes.NewBuffer(buf)); err != nil {
 			return nil, fmt.Errorf("unable to encode standard device descriptor: %w", err)
 		}
 		return buf, nil
-	case usbprotocol.DescriptorTypeConfiguration:
+	case usbprotocol.DESCRIPTOR_TYPE_CONFIGURATION:
 		hidDesc := g.getHIDDescriptor(uint16(len(mouseHIDReport)))
 		intfDesc := g.getInterfaceDescriptor()
 		endpointDescs := g.getEndpointDescriptor()
@@ -286,14 +289,14 @@ func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.Descrip
 		}
 
 		return append(configDescBuf.Bytes(), configDescDetailBuf.Bytes()...), nil
-	case usbprotocol.DescriptorTypeString:
+	case usbprotocol.DESCRIPTOR_TYPE_STRING:
 		stringDescBuf := new(bytes.Buffer)
 		stringContent := g.getStringDescriptor(index)
 		if err := stringContent.Encode(stringDescBuf); err != nil {
 			return nil, fmt.Errorf("unable to encode string descriptor: %w", err)
 		}
 		return stringDescBuf.Bytes(), nil
-	case usbprotocol.DescriptorTypeHIDReport:
+	case usbprotocol.DESCRIPTOR_TYPE_HID_REPORT:
 		return mouseHIDReport, nil
 	default:
 		return nil, fmt.Errorf("unknown or unimplemented descriptor type for getting descriptor: type: %d, index: %d", descriptorType, index)
@@ -303,9 +306,9 @@ func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.Descrip
 func (g *genericHIDMouseDevice) processControlMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
 	g.logger.Debug("received control message SetupPacket", "setup", setup)
 	switch setup.BMRequestType.Recipient() {
-	case usbprotocol.SetupRecipientDevice:
+	case usbprotocol.SETUP_RECIPIENT_DEVICE:
 		return g.processControlDeviceMsg(setup)
-	case usbprotocol.SetupRecipientInterface:
+	case usbprotocol.SETUP_RECIPIENT_INTERFACE:
 		return g.processControlInterfaceMsg(setup)
 	default:
 		return nil, fmt.Errorf("unknown or unimplemented SetupPacket's BMRequestType: %x", setup.BMRequestType)
@@ -315,13 +318,13 @@ func (g *genericHIDMouseDevice) processControlMsg(setup usbprotocol.SetupPacket)
 // processControlDeviceMsg processes requests that are sent to Device, which should be all standard requests
 func (g *genericHIDMouseDevice) processControlDeviceMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
 	switch setup.BRequest {
-	case usbprotocol.RequestGetDescriptor:
+	case usbprotocol.REQUEST_GET_DESCRIPTOR:
 		descriptorType, index := usbprotocol.GetDescriptorTypeAndIndex(setup.WValue)
 		return g.getDescriptor(descriptorType, index)
-	case usbprotocol.RequestGetStatus:
+	case usbprotocol.REQUEST_GET_STATUS:
 		// It's a self-powered device, in little-endian form
 		return []byte{0x01, 0x00}, nil
-	case usbprotocol.RequestSetConfiguration:
+	case usbprotocol.REQUEST_SET_CONFIGURATION:
 		// Configuration only have one and cannot be changed, so no-op
 		return nil, nil
 	default:
@@ -332,13 +335,13 @@ func (g *genericHIDMouseDevice) processControlDeviceMsg(setup usbprotocol.SetupP
 // processControlInterfaceMsg processes requests that are sent to Interface, which should be HID requests
 func (g *genericHIDMouseDevice) processControlInterfaceMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
 	switch setup.BRequest {
-	case usbprotocol.RequestGetDescriptor:
+	case usbprotocol.REQUEST_GET_DESCRIPTOR:
 		descriptorType, index := usbprotocol.GetDescriptorTypeAndIndex(setup.WValue)
 		return g.getDescriptor(descriptorType, index)
-	case usbprotocol.RequestHIDSetIdle:
+	case usbprotocol.REQUEST_HID_SET_IDLE:
 		// this is software device, so no-op
 		return nil, nil
-	case usbprotocol.RequestHIDSetProtocol:
+	case usbprotocol.REQUEST_HID_SET_PROTOCOL:
 		// we always use boot protocol
 		return nil, nil
 	default:
@@ -346,7 +349,7 @@ func (g *genericHIDMouseDevice) processControlInterfaceMsg(setup usbprotocol.Set
 	}
 }
 
-func (g *genericHIDMouseDevice) proceeHIDData(data protocol.CmdSubmit) ([]byte, error) {
+func (g *genericHIDMouseDevice) proceeHIDData(_ protocol.CmdSubmit) ([]byte, error) {
 	buf := make([]byte, 4)
 
 	buf[0] = 0 // Button 1,2,3 and device specific (1 byte)

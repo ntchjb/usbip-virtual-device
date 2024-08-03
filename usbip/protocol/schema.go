@@ -80,15 +80,20 @@ type DeviceInfoTruncated struct {
 	IDVendor uint16
 	// Product ID
 	IDProduct uint16
-	// Device-defined revision number
+	// Device release number (assigned by manufacturer).
 	BCDDevice uint16
-	// Device class
-	BDeviceClass        uint8
-	BDeviceSubclass     uint8
-	BDeviceProtocol     uint8
+	// Class code (assigned by USB). Note that the HID class is defined in the Interface descriptor.
+	BDeviceClass uint8
+	// Subclass code (assigned by USB). These codes are qualified by the value of the bDeviceClass field.
+	BDeviceSubclass uint8
+	// Protocol code. These codes are qualified by the value of the bDeviceSubClass field.
+	BDeviceProtocol uint8
+	// Value to use as an argument to Set Configuration to select this configuration.
 	BConfigurationValue uint8
-	BNumConfigurations  uint8
-	BNumInterfaces      uint8
+	// Number of possible configurations.
+	BNumConfigurations uint8
+	// Number of interfaces supported by this configuration.
+	BNumInterfaces uint8
 }
 
 // Device information for attachment
@@ -99,10 +104,14 @@ type DeviceInfo struct {
 
 // Device interface
 type DeviceInterface struct {
-	BInterfaceClass    uint8
+	// Class code (assigned by the USB-IF).
+	BInterfaceClass uint8
+	// Subclass code (assigned by the USB-IF).
 	BInterfaceSubclass uint8
+	// Protocol code (assigned by the USB).
 	BInterfaceProtocol uint8
-	PaddingAlignment   uint8
+	// padding byte for alignment, shall be set to zero
+	PaddingAlignment uint8
 }
 
 type Command uint32

@@ -3,25 +3,25 @@ package protocol
 type DescriptorType uint8
 
 const (
-	DescriptorTypeDevice                                     DescriptorType = 1
-	DescriptorTypeConfiguration                              DescriptorType = 2
-	DescriptorTypeString                                     DescriptorType = 3
-	DescriptorTypeInterface                                  DescriptorType = 4
-	DescriptorTypeEndpoint                                   DescriptorType = 5
-	DescriptorTypeInterfacePower                             DescriptorType = 8
-	DescriptorTypeOTG                                        DescriptorType = 9
-	DescriptorTypeDebug                                      DescriptorType = 10
-	DescriptorTypeInterfaceAssociation                       DescriptorType = 11
-	DescriptorTypeBOS                                        DescriptorType = 15
-	DescriptorTypeDeviceCapability                           DescriptorType = 16
-	DescriptorTypeSuperSpeedUSBEndpointCompanion             DescriptorType = 48
-	DescriptorTypeSuperSpeedPlusIsochronousEndpointCompanion DescriptorType = 49
+	DESCRIPTOR_TYPE_DEVICE                                          DescriptorType = 1
+	DESCRIPTOR_TYPE_CONFIGURATION                                   DescriptorType = 2
+	DESCRIPTOR_TYPE_STRING                                          DescriptorType = 3
+	DESCRIPTOR_TYPE_INTERFACE                                       DescriptorType = 4
+	DESCRIPTOR_TYPE_ENDPOINT                                        DescriptorType = 5
+	DESCRIPTOR_TYPE_INTERFACE_POWER                                 DescriptorType = 8
+	DESCRIPTOR_TYPE_OTG                                             DescriptorType = 9
+	DESCRIPTOR_TYPE_DEBUG                                           DescriptorType = 10
+	DESCRIPTOR_TYPE_INTERFACE_ASSOCIATION                           DescriptorType = 11
+	DESCRIPTOR_TYPE_BOS                                             DescriptorType = 15
+	DESCRIPTOR_TYPE_DEVICE_CAPABILITY                               DescriptorType = 16
+	DESCRIPTOR_TYPE_SUPER_SPEED_USB_ENDPOINT_COMPANION              DescriptorType = 48
+	DESCRIPTOR_TYPE_SUPER_SPEED_PLUS_ISOCHRONOUS_ENDPOINT_COMPANION DescriptorType = 49
 )
 
 const (
-	DescriptorTypeHID                   DescriptorType = 0x21
-	DescriptorTypeHIDReport             DescriptorType = 0x22
-	DescriptorTypeHIDPhysicalDescriptor DescriptorType = 0x23
+	DESCRIPTOR_TYPE_HID                     DescriptorType = 0x21
+	DESCRIPTOR_TYPE_HID_REPORT              DescriptorType = 0x22
+	DESCRIPTOR_TYPE_HIS_PHYSICAL_DESCRIPTOR DescriptorType = 0x23
 )
 
 const (

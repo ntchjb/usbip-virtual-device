@@ -2,8 +2,8 @@ package handler
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 
@@ -76,12 +76,13 @@ func (op *requestHandlerImpl) HandleOpDevList(opHeader protocol.OpHeader) error 
 	// 2. Reply a list of USB devices
 	devices := op.registrar.GetAvailableDevices()
 	var reply protocol.OpRepDevList
+	var replyHeader protocol.OpHeader
 
-	reply.OpHeader.Version = opHeader.Version
-	reply.CommandOrReplyCode = protocol.OP_REP_DEVLIST
-	reply.Status = 0
+	replyHeader.Version = opHeader.Version
+	replyHeader.CommandOrReplyCode = protocol.OP_REP_DEVLIST
+	replyHeader.Status = 0
+
 	reply.DeviceCount = uint32(len(devices))
-
 	if len(devices) > 0 {
 		reply.Devices = make([]protocol.DeviceInfo, len(devices))
 	}
@@ -89,7 +90,10 @@ func (op *requestHandlerImpl) HandleOpDevList(opHeader protocol.OpHeader) error 
 		reply.Devices[i] = device.GetDeviceInfo()
 	}
 
-	op.logger.Debug("OP_DEVLIST_REPLY", "reply", reply)
+	op.logger.Debug("OP_DEVLIST_REPLY", "reply", reply, "replyHeader", replyHeader)
+	if err := replyHeader.Encode(op.conn); err != nil {
+		return fmt.Errorf("unable to encode OpHeader for OpRepDevList: %w", err)
+	}
 	if err := reply.Encode(op.conn); err != nil {
 		return fmt.Errorf("unable to encode OpRepDevList: %w", err)
 	}
@@ -102,30 +106,35 @@ func (op *requestHandlerImpl) HandleOpImport(opHeader protocol.OpHeader) error {
 		OpHeader: opHeader,
 	}
 	var reply protocol.OpRepImport
+	var replyHeader protocol.OpHeader
 
 	if err := opReqImport.Decode(op.conn); err != nil {
 		return fmt.Errorf("unable to decode OpReqImport: %w", err)
 	}
 
-	reply.Version = opHeader.Version
-	reply.CommandOrReplyCode = protocol.OP_REP_IMPORT
+	replyHeader.Version = opHeader.Version
+	replyHeader.CommandOrReplyCode = protocol.OP_REP_IMPORT
 	device, err := op.registrar.GetDevice(opReqImport.BusID)
 	if err != nil {
-		if !errors.Is(err, usb.ErrDeviceNotFound) {
-			op.logger.Error("unable to get USB device from registrar", "err", err)
-		}
-		reply.Status = protocol.OP_STATUS_ERROR
+		op.logger.Error("unable to get USB device from registrar", "err", err)
+		replyHeader.Status = protocol.OP_STATUS_ERROR
 	} else {
-		reply.Status = protocol.OP_STATUS_OK
+		replyHeader.Status = protocol.OP_STATUS_OK
 		reply.DeviceInfo = device.GetDeviceInfo().DeviceInfoTruncated
 	}
 
-	op.logger.Debug("OP_IMPORT_REPLY", "reply", reply)
+	op.logger.Debug("OP_IMPORT_REPLY", "reply", reply, "replyHeader", replyHeader)
+	if err := replyHeader.Encode(op.conn); err != nil {
+		return fmt.Errorf("unable to encode OpHeader: for OpRepImport: %w", err)
+	}
+	if replyHeader.Status != protocol.OP_STATUS_OK {
+		return io.EOF
+	}
+
 	if err := reply.Encode(op.conn); err != nil {
 		return fmt.Errorf("unable to encode OpRepImport: %w", err)
 	}
-
-	op.worker.SetProcessor(device.GetURBProcessor())
+	op.worker.SetDevice(device)
 	op.worker.Start()
 
 	op.level = HANDLER_LEVEL_CMD

@@ -5,8 +5,9 @@ import (
 	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 )
 
-type URBProcessor interface {
-	Process(data protocol.CmdSubmit) protocol.RetSubmit
+type WorkerPoolProfile struct {
+	MaximumProcWorkers  int
+	MaximumReplyWorkers int
 }
 
 // Device represents a USB device and its logic
@@ -18,5 +19,7 @@ type Device interface {
 	// GetDeviceInfo returns device information used by OpDevList
 	GetDeviceInfo() protocol.DeviceInfo
 	// GetURBProcessor returns an instance of processor of this device, used by handler's worker pool
-	GetURBProcessor() URBProcessor
+	Process(data protocol.CmdSubmit) protocol.RetSubmit
+	// GetWorkerPoolProfile returns worker configuration to be used by worker pool for this device
+	GetWorkerPoolProfile() WorkerPoolProfile
 }

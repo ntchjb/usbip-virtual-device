@@ -18,9 +18,8 @@ type WorkerPool interface {
 	Start() error
 	// Stop worker pool
 	Stop() error
-	// Set URB processor after selected a USB device via OpImport operation
-	SetProcessor(processor usb.URBProcessor)
-
+	// SetDevice assignes device to worker pool as data receiver and processor
+	SetDevice(device usb.Device)
 	// Delegated functions from Queue
 	// Mark URB as unlinked by given sequence number
 	Unlink(header protocol.CmdUnlink) error
@@ -28,17 +27,11 @@ type WorkerPool interface {
 	PublishCmdSubmit(urb protocol.CmdSubmit)
 }
 
-type WorkerPoolConfig struct {
-	MaximumProcWorkers  int
-	MaximumReplyWorkers int
-}
-
 type workerPoolImpl struct {
-	config      WorkerPoolConfig
 	wg          sync.WaitGroup
 	queue       Queue
 	logger      *slog.Logger
-	processor   usb.URBProcessor
+	device      usb.Device
 	replyWriter io.Writer
 
 	processingURBsLock sync.RWMutex
@@ -47,10 +40,9 @@ type workerPoolImpl struct {
 	unlinkFlags        map[uint32]bool
 }
 
-func NewWorkerPool(config WorkerPoolConfig, queue Queue, replyWriter io.Writer, logger *slog.Logger) WorkerPool {
+func NewWorkerPool(queue Queue, replyWriter io.Writer, logger *slog.Logger) WorkerPool {
 	return &workerPoolImpl{
 		queue:          queue,
-		config:         config,
 		logger:         logger,
 		replyWriter:    replyWriter,
 		processingURBs: make(map[uint32]bool),
@@ -127,13 +119,17 @@ func (p *workerPoolImpl) PublishCmdSubmit(urb protocol.CmdSubmit) {
 	p.queue.PublishCmdSubmit(urb)
 }
 
-func (p *workerPoolImpl) SetProcessor(processor usb.URBProcessor) {
-	p.processor = processor
+func (p *workerPoolImpl) SetDevice(device usb.Device) {
+	p.device = device
 }
 
 func (p *workerPoolImpl) Start() error {
+	if p.device == nil {
+		return fmt.Errorf("device does not exist in this worker pool")
+	}
+	config := p.device.GetWorkerPoolProfile()
 	// Initiate worker pool for processing CmdSubmit from queue
-	for i := 0; i < p.config.MaximumProcWorkers; i++ {
+	for i := 0; i < config.MaximumProcWorkers; i++ {
 		p.wg.Add(1)
 		go func() {
 			defer p.wg.Done()
@@ -154,14 +150,14 @@ func (p *workerPoolImpl) Start() error {
 					continue
 				}
 
-				urbRet := p.processor.Process(urbSubmit)
+				urbRet := p.device.Process(urbSubmit)
 				p.queue.PublishRetSubmit(urbRet)
 			}
 		}()
 	}
 
 	// Initiate worker pool for sending RetSubmit to io.Writer (which should be net.Conn)
-	for i := 0; i < p.config.MaximumReplyWorkers; i++ {
+	for i := 0; i < config.MaximumReplyWorkers; i++ {
 		p.wg.Add(1)
 		go func() {
 			defer p.wg.Done()

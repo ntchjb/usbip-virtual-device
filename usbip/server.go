@@ -24,7 +24,6 @@ type USBIPServerConfig struct {
 	ListenAddress        string
 	TCPConnectionTimeout time.Duration
 	MaxTCPConnection     uint
-	URBWorkerConfig      handler.WorkerPoolConfig
 }
 
 type usbIPServerImpl struct {
@@ -120,7 +119,7 @@ func (s *usbIPServerImpl) Close() error {
 
 func (s *usbIPServerImpl) handleConnection(conn net.Conn) {
 	queue := handler.NewURBQueue()
-	worker := handler.NewWorkerPool(s.conf.URBWorkerConfig, queue, conn, s.logger)
+	worker := handler.NewWorkerPool(queue, conn, s.logger)
 	reqHandler := handler.NewRequestHandler(conn, s.registrar, worker, s.logger)
 
 	defer conn.Close()

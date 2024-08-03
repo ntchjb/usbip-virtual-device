@@ -33,11 +33,6 @@ func (op *OpReqImport) Encode(writer io.Writer) error {
 // Decode read data from stream and store in struct.
 // Note that this function does not decode OpHeader, which should be done already during connection handling
 func (op *OpRepImport) Decode(reader io.Reader) error {
-	// If the previous status field was OK (0), otherwise the reply ends with the status field.
-	if op.OpHeader.Status == OP_STATUS_ERROR {
-		return nil
-	}
-
 	if err := op.DeviceInfo.Decode(reader); err != nil {
 		return fmt.Errorf("unable to decode DeviceInfoTruncated: %w", err)
 	}
@@ -47,11 +42,6 @@ func (op *OpRepImport) Decode(reader io.Reader) error {
 // Encode writes data from struct to stream.
 // Note that this function does not encode OpHeader, which should be done already during connection handling
 func (op *OpRepImport) Encode(writer io.Writer) error {
-	// If the previous status field was OK (0), otherwise the reply ends with the status field.
-	if op.OpHeader.Status == OP_STATUS_ERROR {
-		return nil
-	}
-
 	if err := op.DeviceInfo.Encode(writer); err != nil {
 		return fmt.Errorf("unable to encode DeviceInfoTruncated: %w", err)
 	}
