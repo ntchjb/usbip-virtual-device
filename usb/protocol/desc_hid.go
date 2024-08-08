@@ -48,19 +48,15 @@ func (h *HIDDescriptor) Decode(reader io.Reader) error {
 		if err != nil {
 			return fmt.Errorf("unable to read optional HID descriptor type from stream: %w", err)
 		}
-		h.BOptionalDescriptorType = DescriptorType(buf[9])
-		h.BOptionalDescriptorLength = binary.LittleEndian.Uint16(buf[10:12])
+		h.BOptionalDescriptorType = DescriptorType(buf[0])
+		h.BOptionalDescriptorLength = binary.LittleEndian.Uint16(buf[1:3])
 	}
 
 	return nil
 }
 
 func (h *HIDDescriptor) Encode(writer io.Writer) error {
-	bufLength := HID_DESCRIPTOR_LENGTH
-	if h.BOptionalDescriptorType > 0 {
-		bufLength += 3
-	}
-	buf := make([]byte, bufLength)
+	buf := make([]byte, HID_DESCRIPTOR_LENGTH)
 
 	buf[0] = h.BLength
 	buf[1] = byte(h.BDescriptorType)
@@ -70,13 +66,18 @@ func (h *HIDDescriptor) Encode(writer io.Writer) error {
 	buf[6] = byte(h.BClassDescriptorType)
 	binary.LittleEndian.PutUint16(buf[7:9], h.WDescriptorLength)
 
-	if h.BOptionalDescriptorType > 0 {
-		buf[9] = byte(h.BOptionalDescriptorType)
-		binary.LittleEndian.PutUint16(buf[10:12], h.BOptionalDescriptorLength)
-	}
-
 	if err := stream.Write(writer, buf); err != nil {
 		return fmt.Errorf("unable to write HID descriptor to stream: %w", err)
+	}
+
+	if h.BOptionalDescriptorType > 0 {
+		buf := make([]byte, 3)
+		buf[0] = byte(h.BOptionalDescriptorType)
+		binary.LittleEndian.PutUint16(buf[1:3], h.BOptionalDescriptorLength)
+
+		if err := stream.Write(writer, buf); err != nil {
+			return fmt.Errorf("unable to write HID descriptor optional types to stream: %w", err)
+		}
 	}
 
 	return nil

@@ -185,6 +185,8 @@ func (g *genericHIDMouseDevice) getConfigurationDescriptor(totalDetailLength uin
 		BDescriptorType:     usbprotocol.DESCRIPTOR_TYPE_CONFIGURATION,
 		WTotalLength:        usbprotocol.STANDARD_CONFIGURATION_DESCRIPTOR_LENGTH + totalDetailLength,
 		BNumInterfaces:      1,
+		BMAttributes:        0b01000000,
+		BMaxPower:           0x32,
 		BConfigurationValue: 1,
 		IConfiguration:      4, // String descriptor
 	}

@@ -21,7 +21,7 @@ func (s *StringDescriptor) Decode(reader io.Reader) error {
 	}
 	s.BLength = buf[0]
 
-	buf, err = stream.Read(reader, int(s.BLength))
+	buf, err = stream.Read(reader, int(s.BLength)-1)
 	if err != nil {
 		return fmt.Errorf("unable to read string descriptor for stream: %w", err)
 	}
