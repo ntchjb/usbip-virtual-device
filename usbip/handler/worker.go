@@ -124,6 +124,7 @@ func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
 }
 
 func (p *workerPoolImpl) PublishCmdSubmit(urb protocol.CmdSubmit) {
+	p.logger.Debug("Received CmdSubmit", "data", urb)
 	p.markAsProcessing(urb.SeqNum)
 	p.cmdQueue <- urb
 }
@@ -167,6 +168,7 @@ func (p *workerPoolImpl) Start() error {
 			defer p.wgRetSubmit.Done()
 
 			for urbRet := range p.retQueue {
+				p.logger.Debug("Replying RetSubmit", "data", urbRet)
 				if err := urbRet.CmdHeader.Encode(p.replyWriter); err != nil {
 					p.logger.Error("unable to encode RetSubmit header to stream", "err", err)
 				} else if err := urbRet.Encode(p.replyWriter); err != nil {

@@ -1,4 +1,4 @@
-package usb
+package main
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"unicode/utf16"
 
+	"github.com/ntchjb/usbip-virtual-device/usb"
 	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
 	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 )
@@ -44,9 +45,11 @@ var (
 type genericHIDMouseDevice struct {
 	deviceInfo protocol.DeviceInfo
 	logger     *slog.Logger
+
+	state int
 }
 
-func NewGenericHIDMouseDevice(logger *slog.Logger) Device {
+func NewGenericHIDMouseDevice(logger *slog.Logger) usb.Device {
 	return &genericHIDMouseDevice{
 		logger: logger,
 		deviceInfo: protocol.DeviceInfo{
@@ -65,7 +68,7 @@ func NewGenericHIDMouseDevice(logger *slog.Logger) Device {
 			Interfaces: []protocol.DeviceInterface{
 				{
 					BInterfaceClass:    usbprotocol.CLASS_HID,
-					BInterfaceSubclass: usbprotocol.SUBCLASS_NONE,
+					BInterfaceSubclass: usbprotocol.SUBCLASS_HID_BOOT_INTERFACE,
 					BInterfaceProtocol: usbprotocol.PROTOCOL_HID_MOUSE,
 				},
 			},
@@ -73,8 +76,8 @@ func NewGenericHIDMouseDevice(logger *slog.Logger) Device {
 	}
 }
 
-func (g *genericHIDMouseDevice) GetWorkerPoolProfile() WorkerPoolProfile {
-	return WorkerPoolProfile{
+func (g *genericHIDMouseDevice) GetWorkerPoolProfile() usb.WorkerPoolProfile {
+	return usb.WorkerPoolProfile{
 		MaximumProcWorkers:  1,
 		MaximumReplyWorkers: 1,
 	}
@@ -101,6 +104,7 @@ func (g *genericHIDMouseDevice) GetDeviceInfo() protocol.DeviceInfo {
 }
 
 func (g *genericHIDMouseDevice) Process(data protocol.CmdSubmit) protocol.RetSubmit {
+	retTransferBuffer := make([]byte, data.TransferBufferLength)
 	switch data.EndpointNumber {
 	case usbprotocol.ENDPOINT_CONTROL:
 		{
@@ -116,7 +120,8 @@ func (g *genericHIDMouseDevice) Process(data protocol.CmdSubmit) protocol.RetSub
 				return g.createErrorRetSubmit(data.CmdHeader)
 			}
 
-			return g.createSuccessRetSubmit(data.CmdHeader, retData)
+			copy(retTransferBuffer, retData)
+			return g.createSuccessRetSubmit(data.CmdHeader, retTransferBuffer)
 		}
 	case usbprotocol.ENDPOINT_DEV_TO_HOST:
 		{
@@ -125,7 +130,8 @@ func (g *genericHIDMouseDevice) Process(data protocol.CmdSubmit) protocol.RetSub
 				g.logger.Error("unable to process data message", "err", err)
 				return g.createErrorRetSubmit(data.CmdHeader)
 			}
-			return g.createSuccessRetSubmit(data.CmdHeader, retData)
+			copy(retTransferBuffer, retData)
+			return g.createSuccessRetSubmit(data.CmdHeader, retTransferBuffer)
 		}
 	default:
 		g.logger.Error("unknown endpoint number", "endpoint", data.EndpointNumber)
@@ -168,7 +174,7 @@ func (g *genericHIDMouseDevice) getDeviceDescriptor() usbprotocol.StandardDevice
 		BDeviceClass:       usbprotocol.CLASS_BASEDON_INTERFACE,
 		BDeviceSubClass:    usbprotocol.SUBCLASS_NONE,
 		BDeviceProtocol:    usbprotocol.PROTOCOL_NONE,
-		BMaxPacketSize:     8,
+		BMaxPacketSize:     64,
 		IDVendor:           g.deviceInfo.IDVendor,
 		IDProduct:          g.deviceInfo.IDProduct,
 		BCDDevice:          g.deviceInfo.BCDDevice,
@@ -261,11 +267,11 @@ func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.Descrip
 	switch descriptorType {
 	case usbprotocol.DESCRIPTOR_TYPE_DEVICE:
 		desc := g.getDeviceDescriptor()
-		buf := make([]byte, usbprotocol.STANDARD_DEVICE_DESCRIPTOR_LENGTH)
-		if err := desc.Encode(bytes.NewBuffer(buf)); err != nil {
+		buf := new(bytes.Buffer)
+		if err := desc.Encode(buf); err != nil {
 			return nil, fmt.Errorf("unable to encode standard device descriptor: %w", err)
 		}
-		return buf, nil
+		return buf.Bytes(), nil
 	case usbprotocol.DESCRIPTOR_TYPE_CONFIGURATION:
 		hidDesc := g.getHIDDescriptor(uint16(len(mouseHIDReport)))
 		intfDesc := g.getInterfaceDescriptor()
@@ -290,6 +296,11 @@ func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.Descrip
 			return nil, fmt.Errorf("unable to encode configuration descriptor: %w", err)
 		}
 
+		// They are appended because USB/IP client requests 2 times as follow
+		// 1. Request for Configuration Descriptor only (9 bytes), and this result will be sliced
+		// 	  based on CmdSubmit's TransferBufferLength
+		// 2. The client side learn the actual length of data, it request again.
+		//    This time, it request the whole data (34 bytes), so no data is sliced out.
 		return append(configDescBuf.Bytes(), configDescDetailBuf.Bytes()...), nil
 	case usbprotocol.DESCRIPTOR_TYPE_STRING:
 		stringDescBuf := new(bytes.Buffer)
@@ -306,7 +317,7 @@ func (g *genericHIDMouseDevice) getDescriptor(descriptorType usbprotocol.Descrip
 }
 
 func (g *genericHIDMouseDevice) processControlMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
-	g.logger.Debug("received control message SetupPacket", "setup", setup)
+	g.logger.Debug("Received control message SetupPacket", "setup", setup)
 	switch setup.BMRequestType.Recipient() {
 	case usbprotocol.SETUP_RECIPIENT_DEVICE:
 		return g.processControlDeviceMsg(setup)
@@ -319,6 +330,7 @@ func (g *genericHIDMouseDevice) processControlMsg(setup usbprotocol.SetupPacket)
 
 // processControlDeviceMsg processes requests that are sent to Device, which should be all standard requests
 func (g *genericHIDMouseDevice) processControlDeviceMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
+	g.logger.Debug("Processing control device msg")
 	switch setup.BRequest {
 	case usbprotocol.REQUEST_GET_DESCRIPTOR:
 		descriptorType, index := usbprotocol.GetDescriptorTypeAndIndex(setup.WValue)
@@ -336,6 +348,7 @@ func (g *genericHIDMouseDevice) processControlDeviceMsg(setup usbprotocol.SetupP
 
 // processControlInterfaceMsg processes requests that are sent to Interface, which should be HID requests
 func (g *genericHIDMouseDevice) processControlInterfaceMsg(setup usbprotocol.SetupPacket) ([]byte, error) {
+	g.logger.Debug("Processing control interface msg")
 	switch setup.BRequest {
 	case usbprotocol.REQUEST_GET_DESCRIPTOR:
 		descriptorType, index := usbprotocol.GetDescriptorTypeAndIndex(setup.WValue)
@@ -352,12 +365,21 @@ func (g *genericHIDMouseDevice) processControlInterfaceMsg(setup usbprotocol.Set
 }
 
 func (g *genericHIDMouseDevice) proceeHIDData(_ protocol.CmdSubmit) ([]byte, error) {
-	buf := make([]byte, 4)
+	// g.logger.Debug("Processing HID data")
+	buf := make([]byte, 3)
+	var minusFive int8 = -5
 
-	buf[0] = 0 // Button 1,2,3 and device specific (1 byte)
-	buf[1] = 5 // X
-	buf[2] = 5 // Y
-	buf[3] = 0 // device specific
+	if g.state == 0 {
+		buf[0] = 0 // Button 1,2,3 and device specific (1 byte)
+		buf[1] = 5 // X
+		buf[2] = 5 // Y
+	} else if g.state == 1 {
+		buf[0] = 0                // Button 1,2,3 and device specific (1 byte)
+		buf[1] = uint8(minusFive) // X
+		buf[2] = uint8(minusFive) // Y
+	}
+
+	g.state = (g.state + 1) % 2
 
 	return buf, nil
 }

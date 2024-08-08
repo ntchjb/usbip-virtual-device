@@ -94,6 +94,7 @@ func (s *usbIPServerImpl) Open() error {
 					defer s.connWg.Done()
 					s.logger.Info("new connection established", "addr", conn.RemoteAddr())
 					s.handleConnection(conn)
+					s.logger.Info("connection closed", "addr", conn.RemoteAddr())
 				}()
 			}
 		}
