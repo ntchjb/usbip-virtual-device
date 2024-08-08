@@ -44,6 +44,7 @@ func Write(writer io.Writer, buf []byte) error {
 		return fmt.Errorf("unable to write data to stream: %w", err)
 	}
 	if n < len(buf) {
+		// This should be unreacheable because writer should return error if n < len(buf)
 		return ErrIncompleteWriteData
 	}
 

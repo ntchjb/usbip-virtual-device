@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,6 +9,10 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+)
+
+const (
+	URB_QUEUE_SIZE = 1024
 )
 
 // WorkerPool is a pool of workers processing CmdSubmit requests and reply with RetSubmit to client
@@ -28,11 +31,14 @@ type WorkerPool interface {
 }
 
 type workerPoolImpl struct {
-	wg          sync.WaitGroup
-	queue       Queue
+	wgCmdSubmit sync.WaitGroup
+	wgRetSubmit sync.WaitGroup
 	logger      *slog.Logger
 	device      usb.Device
 	replyWriter io.Writer
+
+	cmdQueue chan protocol.CmdSubmit
+	retQueue chan protocol.RetSubmit
 
 	processingURBsLock sync.RWMutex
 	processingURBs     map[uint32]bool
@@ -40,13 +46,14 @@ type workerPoolImpl struct {
 	unlinkFlags        map[uint32]bool
 }
 
-func NewWorkerPool(queue Queue, replyWriter io.Writer, logger *slog.Logger) WorkerPool {
+func NewWorkerPool(replyWriter io.Writer, logger *slog.Logger) WorkerPool {
 	return &workerPoolImpl{
-		queue:          queue,
 		logger:         logger,
 		replyWriter:    replyWriter,
 		processingURBs: make(map[uint32]bool),
 		unlinkFlags:    make(map[uint32]bool),
+		cmdQueue:       make(chan protocol.CmdSubmit, URB_QUEUE_SIZE),
+		retQueue:       make(chan protocol.RetSubmit, URB_QUEUE_SIZE),
 	}
 }
 
@@ -83,7 +90,7 @@ func (p *workerPoolImpl) markAsProcessing(seqNum uint32) {
 	p.processingURBs[seqNum] = true
 }
 
-func (p *workerPoolImpl) markAsDone(seqNum uint32) {
+func (p *workerPoolImpl) markAsProcessed(seqNum uint32) {
 	p.processingURBsLock.Lock()
 	defer p.processingURBsLock.Unlock()
 
@@ -107,7 +114,9 @@ func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
 	}
 
 	// Reply RetUnlink back to client
-	if err := retUnlink.Encode(p.replyWriter); err != nil {
+	if err := retUnlink.CmdHeader.Encode(p.replyWriter); err != nil {
+		return fmt.Errorf("unable to encode RetUnlink header: %w", err)
+	} else if err := retUnlink.Encode(p.replyWriter); err != nil {
 		return fmt.Errorf("unable to encode RetUnlink: %w", err)
 	}
 
@@ -116,7 +125,7 @@ func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
 
 func (p *workerPoolImpl) PublishCmdSubmit(urb protocol.CmdSubmit) {
 	p.markAsProcessing(urb.SeqNum)
-	p.queue.PublishCmdSubmit(urb)
+	p.cmdQueue <- urb
 }
 
 func (p *workerPoolImpl) SetDevice(device usb.Device) {
@@ -130,59 +139,37 @@ func (p *workerPoolImpl) Start() error {
 	config := p.device.GetWorkerPoolProfile()
 	// Initiate worker pool for processing CmdSubmit from queue
 	for i := 0; i < config.MaximumProcWorkers; i++ {
-		p.wg.Add(1)
+		p.wgCmdSubmit.Add(1)
 		go func() {
-			defer p.wg.Done()
+			defer p.wgCmdSubmit.Done()
 
-			for {
-				urbSubmit, err := p.queue.ConsumeCmdSubmit()
-				if err != nil {
-					if !errors.Is(err, ErrQueueClosed) {
-						p.logger.Error("unable to dequeue CmdSubmit", "err", err)
-					}
-					break
-				}
-
+			for urbSubmit := range p.cmdQueue {
 				// Check Unlink #1: before return to caller, for processing
 				if p.removeUnlinkFlag(urbSubmit.SeqNum) {
 					p.logger.Debug("Unlinked URB detected, ignoring", "urbSeqNum", urbSubmit.SeqNum)
-					p.markAsDone(urbSubmit.SeqNum)
+					p.markAsProcessed(urbSubmit.SeqNum)
 					continue
 				}
+				// After this is called, further logic will ignore any upcoming unlink requests
+				// for this URB and the server will reply RetSubmit back to client
+				p.markAsProcessed(urbSubmit.SeqNum)
 
 				urbRet := p.device.Process(urbSubmit)
-				p.queue.PublishRetSubmit(urbRet)
+				p.retQueue <- urbRet
 			}
 		}()
 	}
 
 	// Initiate worker pool for sending RetSubmit to io.Writer (which should be net.Conn)
 	for i := 0; i < config.MaximumReplyWorkers; i++ {
-		p.wg.Add(1)
+		p.wgRetSubmit.Add(1)
 		go func() {
-			defer p.wg.Done()
+			defer p.wgRetSubmit.Done()
 
-			for {
-				urbRet, err := p.queue.ConsumeRetSubmit()
-				if err != nil {
-					if !errors.Is(err, ErrQueueClosed) {
-						p.logger.Error("unable to dequeue RetSubmit", "err", err)
-					}
-					break
-				}
-
-				// After markAsDone is called, further logic will ignore any upcoming unlink requests
-				// for this URB and the server will reply RetSubmit back to client
-				p.markAsDone(urbRet.SeqNum)
-
-				// Check Unlink #2: before return to caller, for sending to client
-				if p.removeUnlinkFlag(urbRet.SeqNum) {
-					p.logger.Debug("Unlinked URB detected, ignoring", "urbSeqNum", urbRet.SeqNum)
-					p.markAsDone(urbRet.SeqNum)
-					continue
-				}
-
-				if err := urbRet.Encode(p.replyWriter); err != nil {
+			for urbRet := range p.retQueue {
+				if err := urbRet.CmdHeader.Encode(p.replyWriter); err != nil {
+					p.logger.Error("unable to encode RetSubmit header to stream", "err", err)
+				} else if err := urbRet.Encode(p.replyWriter); err != nil {
 					p.logger.Error("unable to encode RetSubmit to stream", "err", err)
 				}
 			}
@@ -192,10 +179,10 @@ func (p *workerPoolImpl) Start() error {
 }
 
 func (p *workerPoolImpl) Stop() error {
-	if err := p.queue.Close(); err != nil {
-		return fmt.Errorf("unable to close URB queue: %w", err)
-	}
-	p.wg.Wait()
+	close(p.cmdQueue)
+	p.wgCmdSubmit.Wait()
+	close(p.retQueue)
+	p.wgRetSubmit.Wait()
 
 	return nil
 }

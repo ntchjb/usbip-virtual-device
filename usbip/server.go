@@ -118,8 +118,7 @@ func (s *usbIPServerImpl) Close() error {
 }
 
 func (s *usbIPServerImpl) handleConnection(conn net.Conn) {
-	queue := handler.NewURBQueue()
-	worker := handler.NewWorkerPool(queue, conn, s.logger)
+	worker := handler.NewWorkerPool(conn, s.logger)
 	reqHandler := handler.NewRequestHandler(conn, s.registrar, worker, s.logger)
 
 	defer conn.Close()
@@ -136,7 +135,9 @@ func (s *usbIPServerImpl) handleConnection(conn net.Conn) {
 			}
 		case handler.HANDLER_LEVEL_CMD:
 			if err := s.handleCmd(reqHandler); err != nil {
-				s.logger.Error("unable to handle Cmd request", "err", err)
+				if !errors.Is(err, io.EOF) {
+					s.logger.Error("unable to handle Cmd request", "err", err)
+				}
 				return
 			}
 		}

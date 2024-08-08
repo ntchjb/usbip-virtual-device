@@ -20,6 +20,6 @@ type Device interface {
 	GetDeviceInfo() protocol.DeviceInfo
 	// GetURBProcessor returns an instance of processor of this device, used by handler's worker pool
 	Process(data protocol.CmdSubmit) protocol.RetSubmit
-	// GetWorkerPoolProfile returns worker configuration to be used by worker pool for this device
+	// GetWorkerPoolProfile indicates how worker pool behave for this device, such as, set worker count to 1 to process URB requests in sequences
 	GetWorkerPoolProfile() WorkerPoolProfile
 }
