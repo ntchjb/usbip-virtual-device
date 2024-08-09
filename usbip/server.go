@@ -79,16 +79,16 @@ func (s *usbIPServerImpl) Open() error {
 				}
 			} else {
 				// Check if TCP connection reached limit specified in given config
-				count := connCount.Add(1)
-				if count > int64(s.conf.MaxTCPConnection) {
+				count := connCount.Load()
+				if count+1 > int64(s.conf.MaxTCPConnection) {
 					s.logger.Error("maximum TCP connection reached, drop the connection", "count", count)
 					conn.Close()
-					connCount.Add(-1)
 					continue
 				}
 
 				// TCP connection handler
 				s.connWg.Add(1)
+				connCount.Add(1)
 				go func() {
 					defer connCount.Add(-1)
 					defer s.connWg.Done()
@@ -175,6 +175,7 @@ func (s *usbIPServerImpl) handleCmd(reqHandler handler.RequestHandler) error {
 	if err != nil {
 		return fmt.Errorf("unable to handle CmdHeader: %w", err)
 	}
+	s.logger.Debug("Got CmdHeader", "data", cmdHeader)
 
 	switch cmdHeader.Command {
 	case protocol.CMD_SUBMIT:

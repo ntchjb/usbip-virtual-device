@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"log/slog"
+	"time"
 	"unicode/utf16"
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
@@ -202,7 +203,7 @@ func (g *genericHIDMouseDevice) getInterfaceDescriptor() usbprotocol.StandardInt
 	return usbprotocol.StandardInterfaceDescriptor{
 		BLength:            usbprotocol.STANDARD_INTERFACE_DESCRIPTOR_LENGTH,
 		BDescriptorType:    usbprotocol.DESCRIPTOR_TYPE_INTERFACE,
-		BInterfaceNumber:   1,
+		BInterfaceNumber:   0,
 		BAlternateSetting:  0,
 		BNumEndpoints:      1,
 		BInterfaceClass:    usbprotocol.CLASS_HID,
@@ -219,7 +220,7 @@ func (g *genericHIDMouseDevice) getEndpointDescriptor() []usbprotocol.StandardEn
 			BDescriptorType:  usbprotocol.DESCRIPTOR_TYPE_ENDPOINT,
 			BEndpointAddress: 0b10000001,
 			BMAttributes:     0b00000011,
-			WMaxPacketSize:   128,
+			WMaxPacketSize:   8,
 			BInterval:        255,
 		},
 	}
@@ -365,21 +366,27 @@ func (g *genericHIDMouseDevice) processControlInterfaceMsg(setup usbprotocol.Set
 }
 
 func (g *genericHIDMouseDevice) proceeHIDData(_ protocol.CmdSubmit) ([]byte, error) {
-	// g.logger.Debug("Processing HID data")
+	// Use Sleep to replies every 100ms, which is polling rate of 10Hz
+	time.Sleep(100 * time.Millisecond)
+
 	buf := make([]byte, 3)
 	var minusFive int8 = -5
 
-	if g.state == 0 {
+	if g.state == 5 {
 		buf[0] = 0 // Button 1,2,3 and device specific (1 byte)
 		buf[1] = 5 // X
 		buf[2] = 5 // Y
-	} else if g.state == 1 {
+	} else if g.state == 0 {
 		buf[0] = 0                // Button 1,2,3 and device specific (1 byte)
 		buf[1] = uint8(minusFive) // X
 		buf[2] = uint8(minusFive) // Y
+	} else {
+		buf[0] = 0 // Button 1,2,3 and device specific (1 byte)
+		buf[1] = 0 // X
+		buf[2] = 0 // Y
 	}
 
-	g.state = (g.state + 1) % 2
+	g.state = (g.state + 1) % 10
 
 	return buf, nil
 }

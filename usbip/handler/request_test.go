@@ -183,24 +183,6 @@ var (
 		ISOPacketDescriptors: nil,
 	}
 
-	retSubmit = protocol.RetSubmit{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.RET_SUBMIT,
-			SeqNum:         cmdSubmit.SeqNum,
-			DevID:          cmdSubmit.DevID,
-			Direction:      cmdSubmit.Direction,
-			EndpointNumber: cmdSubmit.EndpointNumber,
-		},
-		Status:               0,
-		ActualLength:         0,
-		StartFrame:           0,
-		NumberOfPackets:      0,
-		ErrorCount:           0,
-		Padding:              0,
-		TransferBuffer:       nil,
-		ISOPacketDescriptors: nil,
-	}
-
 	cmdUnlink = protocol.CmdUnlink{
 		CmdHeader: protocol.CmdHeader{
 			Command:        protocol.CMD_UNLINK,

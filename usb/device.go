@@ -6,7 +6,11 @@ import (
 )
 
 type WorkerPoolProfile struct {
-	MaximumProcWorkers  int
+	// Maximum number of goroutines to process incoming URBs in parallel.
+	// Set this to 1 to process all incoming URBs in sequence.
+	MaximumProcWorkers int
+	// Maximum number of goroutines to reply return data in parallel.
+	// Set this to 1 to reply return data one-by-one.
 	MaximumReplyWorkers int
 }
 
