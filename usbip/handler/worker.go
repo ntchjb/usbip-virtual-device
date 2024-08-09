@@ -42,8 +42,9 @@ type workerPoolImpl struct {
 	replyWriter io.Writer
 	conf        usb.WorkerPoolProfile
 
-	cmdQueue chan protocol.CmdSubmit
-	retQueue chan protocol.RetSubmit
+	cmdQueue    chan protocol.CmdSubmit
+	retQueue    chan protocol.RetSubmit
+	unlinkQueue chan protocol.RetUnlink
 
 	processingURBsLock sync.RWMutex
 	processingURBs     map[uint32]uint8
@@ -56,6 +57,7 @@ func NewWorkerPool(replyWriter io.Writer, logger *slog.Logger) WorkerPool {
 		processingURBs: make(map[uint32]uint8),
 		cmdQueue:       make(chan protocol.CmdSubmit, URB_QUEUE_SIZE),
 		retQueue:       make(chan protocol.RetSubmit, URB_QUEUE_SIZE),
+		unlinkQueue:    make(chan protocol.RetUnlink, URB_QUEUE_SIZE),
 	}
 }
 
@@ -138,12 +140,7 @@ func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
 		p.logger.Debug("Unlink is ignored, does not receive CmdSubmit yet", "seqNum", cmd.SeqNum, "unlinkSeqNum", cmd.UnlinkSeqNum)
 	}
 
-	// Reply RetUnlink back to client
-	if err := retUnlink.CmdHeader.Encode(p.replyWriter); err != nil {
-		return fmt.Errorf("unable to encode RetUnlink header: %w", err)
-	} else if err := retUnlink.Encode(p.replyWriter); err != nil {
-		return fmt.Errorf("unable to encode RetUnlink: %w", err)
-	}
+	p.unlinkQueue <- retUnlink
 
 	return nil
 }
@@ -205,6 +202,25 @@ func (p *workerPoolImpl) Start() error {
 			}
 		}()
 	}
+
+	// Initialize worker pool for sending RetUnlink to io.Writer (which should be net.Conn)
+	for i := 0; i < p.conf.MaximumUnlinkReplyWorkers; i++ {
+		p.wgRetSubmit.Add(1)
+		go func() {
+			defer p.wgRetSubmit.Done()
+
+			for urbRet := range p.unlinkQueue {
+				p.logger.Debug("Replying RetUnlink", "data", urbRet)
+				if err := urbRet.CmdHeader.Encode(p.replyWriter); err != nil {
+					p.logger.Error("unable to encode RetUnlink header to stream", "err", err, "seqNum", urbRet.SeqNum)
+				} else if err := urbRet.Encode(p.replyWriter); err != nil {
+					p.logger.Error("unable to encode RetUnlink to stream", "err", err, "seqNum", urbRet.SeqNum)
+				}
+				p.logger.Debug("Unlink Replied", "urb", urbRet)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -212,6 +228,7 @@ func (p *workerPoolImpl) Stop() error {
 	close(p.cmdQueue)
 	p.wgCmdSubmit.Wait()
 	close(p.retQueue)
+	close(p.unlinkQueue)
 	p.wgRetSubmit.Wait()
 
 	p.conf = usb.WorkerPoolProfile{}

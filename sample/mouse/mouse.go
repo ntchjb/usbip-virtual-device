@@ -79,8 +79,9 @@ func NewGenericHIDMouseDevice(logger *slog.Logger) usb.Device {
 
 func (g *genericHIDMouseDevice) GetWorkerPoolProfile() usb.WorkerPoolProfile {
 	return usb.WorkerPoolProfile{
-		MaximumProcWorkers:  1,
-		MaximumReplyWorkers: 1,
+		MaximumProcWorkers:        1,
+		MaximumReplyWorkers:       1,
+		MaximumUnlinkReplyWorkers: 1,
 	}
 }
 

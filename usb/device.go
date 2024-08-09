@@ -10,8 +10,11 @@ type WorkerPoolProfile struct {
 	// Set this to 1 to process all incoming URBs in sequence.
 	MaximumProcWorkers int
 	// Maximum number of goroutines to reply return data in parallel.
-	// Set this to 1 to reply return data one-by-one.
+	// Set this to 1 to reply return data one-by-one in sequence.
 	MaximumReplyWorkers int
+	// Maximum number of goroutines to reply unlink data in parallel.
+	// Set this to 1 to reply return data one-by-one in sequence.
+	MaximumUnlinkReplyWorkers int
 }
 
 // Device represents a USB device and its logic
