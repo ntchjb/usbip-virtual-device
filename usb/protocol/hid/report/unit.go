@@ -1,4 +1,4 @@
-package hid
+package report
 
 import (
 	"strconv"

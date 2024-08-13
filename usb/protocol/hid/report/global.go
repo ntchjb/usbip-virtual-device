@@ -1,4 +1,4 @@
-package hid
+package report
 
 import "github.com/ntchjb/usbip-virtual-device/usb/protocol/hid/report/common"
 

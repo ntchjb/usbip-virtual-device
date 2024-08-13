@@ -1,4 +1,4 @@
-package hid
+package report
 
 type HIDReportType uint8
 

@@ -1,4 +1,4 @@
-package hid
+package report
 
 import (
 	"encoding/hex"
@@ -61,23 +61,29 @@ func (h HIDReportDescriptor) String() (string, error) {
 		tag := HIDReportTag((prefix.BTag << 4) | (uint8(prefix.BType) << 2))
 		dataLength := hidReportItemSize[prefix.BSize]
 		var detail string
+		dataStartIdx := cursor + 1
 
 		if tag == HID_REPORT_TAG_LONG_ITEM {
-			if cursor+1 >= len(h) {
+			if dataStartIdx >= len(h) {
 				return "", fmt.Errorf("data is too short for long item, cannot read data length")
 			}
-			dataLength = int(h[cursor+1]) + 2
+			dataLength = int(h[dataStartIdx]) + 2
 		}
-		if cursor+dataLength >= len(h) {
+		if dataStartIdx+dataLength > len(h) {
 			return "", fmt.Errorf("data is too short, need parsing tag: %x, need to read from index %d with size %d", tag, cursor, hidReportItemSize[prefix.BSize])
 		}
 
 		if prefix.BType == HID_REPORT_TYPE_GLOBAL {
 			if int(tag) < len(HIDReportGlobalStateUpdaterMap) && HIDReportGlobalStateUpdaterMap[tag] != nil {
-				HIDReportGlobalStateUpdaterMap[tag](&globalState, h[cursor+1:cursor+dataLength])
+				HIDReportGlobalStateUpdaterMap[tag](&globalState, h[dataStartIdx:dataStartIdx+dataLength])
 			}
 		}
 
+		if tag == HID_REPORT_TAG_END_COLLECTION {
+			if currTabs > 0 {
+				currTabs--
+			}
+		}
 		// #1: Write indents, if any
 		for i := 0; i < currTabs; i++ {
 			builder.WriteRune('\t')
@@ -91,7 +97,7 @@ func (h HIDReportDescriptor) String() (string, error) {
 		}
 		// #3: Write data part of that item
 		if int(tag) < len(HIDReportDataStringParserMap) && HIDReportDataStringParserMap[tag] != nil {
-			detail = HIDReportDataStringParserMap[tag](globalState, h[cursor+1:cursor+dataLength])
+			detail = HIDReportDataStringParserMap[tag](globalState, h[cursor+1:cursor+1+dataLength])
 		}
 		if len(detail) > 0 {
 			builder.WriteString(" (")
@@ -103,8 +109,6 @@ func (h HIDReportDescriptor) String() (string, error) {
 
 		if tag == HID_REPORT_TAG_COLLECTION {
 			currTabs++
-		} else if tag == HID_REPORT_TAG_END_COLLECTION {
-			currTabs--
 		}
 		cursor += 1 + dataLength
 	}

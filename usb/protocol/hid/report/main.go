@@ -1,4 +1,4 @@
-package hid
+package report
 
 import (
 	"strings"
@@ -22,6 +22,7 @@ func (h HIDReportInputData) String() string {
 
 	if h.IsConstant {
 		builder.WriteString("Constant")
+		return builder.String()
 	} else {
 		builder.WriteString("Data")
 	}
