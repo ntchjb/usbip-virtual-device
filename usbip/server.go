@@ -12,7 +12,8 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	"github.com/ntchjb/usbip-virtual-device/usbip/handler"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/op"
 )
 
 type USBIPServer interface {
@@ -152,13 +153,13 @@ func (s *usbIPServerImpl) handleOp(reqHandler handler.RequestHandler) error {
 	}
 
 	switch opHeader.CommandOrReplyCode {
-	case protocol.OP_REQ_DEVLIST:
+	case op.OP_REQ_DEVLIST:
 		if err := reqHandler.HandleOpDevList(opHeader); err != nil {
 			return fmt.Errorf("error occurred when handling OpDevList: %w", err)
 		}
 		// Close TCP connection after replied
 		return io.EOF
-	case protocol.OP_REQ_IMPORT:
+	case op.OP_REQ_IMPORT:
 		if err := reqHandler.HandleOpImport(opHeader); err != nil {
 			return fmt.Errorf("error occurred when handling OpImport: %w", err)
 		}
@@ -178,11 +179,11 @@ func (s *usbIPServerImpl) handleCmd(reqHandler handler.RequestHandler) error {
 	s.logger.Debug("Got CmdHeader", "data", cmdHeader)
 
 	switch cmdHeader.Command {
-	case protocol.CMD_SUBMIT:
+	case command.CMD_SUBMIT:
 		if err := reqHandler.HandleCmdSubmit(cmdHeader); err != nil {
 			return fmt.Errorf("unable to handle CmdSubmit: %w", err)
 		}
-	case protocol.CMD_UNLINK:
+	case command.CMD_UNLINK:
 		if err := reqHandler.HandleCmdUnlink(cmdHeader); err != nil {
 			return fmt.Errorf("unable to handle CmdUnlink: %w", err)
 		}

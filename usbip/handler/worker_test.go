@@ -8,18 +8,18 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	"github.com/ntchjb/usbip-virtual-device/usbip/handler"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
 
-var urbQueueCmdSubmits = []protocol.CmdSubmit{
+var urbQueueCmdSubmits = []command.CmdSubmit{
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         1,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		TransferFlags:        0,
@@ -31,11 +31,11 @@ var urbQueueCmdSubmits = []protocol.CmdSubmit{
 		},
 	},
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         2,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		TransferFlags:        0,
@@ -47,11 +47,11 @@ var urbQueueCmdSubmits = []protocol.CmdSubmit{
 		},
 	},
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         3,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		TransferFlags:        0,
@@ -64,13 +64,13 @@ var urbQueueCmdSubmits = []protocol.CmdSubmit{
 	},
 }
 
-var urbQueueRetSubmits = []protocol.RetSubmit{
+var urbQueueRetSubmits = []command.RetSubmit{
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         1,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		Status:          0x00000001,
@@ -82,11 +82,11 @@ var urbQueueRetSubmits = []protocol.RetSubmit{
 		TransferBuffer:  []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 	},
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         2,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		Status:          0x00000001,
@@ -98,11 +98,11 @@ var urbQueueRetSubmits = []protocol.RetSubmit{
 		TransferBuffer:  []byte{0x01, 0x02, 0x03, 0x04, 0x05},
 	},
 	{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         3,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		Status:          0x00000001,
@@ -145,8 +145,9 @@ func TestWorkerPool(t *testing.T) {
 	device := usb.NewMockDevice(ctrl)
 
 	device.EXPECT().GetWorkerPoolProfile().Return(usb.WorkerPoolProfile{
-		MaximumProcWorkers:  1,
-		MaximumReplyWorkers: 1,
+		MaximumProcWorkers:        1,
+		MaximumReplyWorkers:       1,
+		MaximumUnlinkReplyWorkers: 1,
 	})
 	device.EXPECT().Process(urbQueueCmdSubmits[0]).Return(urbQueueRetSubmits[0]).Times(1)
 	device.EXPECT().Process(urbQueueCmdSubmits[1]).Return(urbQueueRetSubmits[1]).AnyTimes()
@@ -159,12 +160,12 @@ func TestWorkerPool(t *testing.T) {
 
 	wp.PublishCmdSubmit(urbQueueCmdSubmits[0])
 	wp.PublishCmdSubmit(urbQueueCmdSubmits[1])
-	errUnlink := wp.Unlink(protocol.CmdUnlink{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_UNLINK,
+	errUnlink := wp.Unlink(command.CmdUnlink{
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_UNLINK,
 			SeqNum:         4,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		UnlinkSeqNum: 2,

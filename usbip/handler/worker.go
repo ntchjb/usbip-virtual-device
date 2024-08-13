@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
 )
 
 const (
@@ -29,9 +29,9 @@ type WorkerPool interface {
 	SetDevice(device usb.Device)
 	// Delegated functions from Queue
 	// Mark URB as unlinked by given sequence number
-	Unlink(header protocol.CmdUnlink) error
+	Unlink(header command.CmdUnlink) error
 	// Publish CmdSubmit to worker pool to be further processed
-	PublishCmdSubmit(urb protocol.CmdSubmit)
+	PublishCmdSubmit(urb command.CmdSubmit)
 }
 
 type workerPoolImpl struct {
@@ -42,9 +42,9 @@ type workerPoolImpl struct {
 	replyWriter io.Writer
 	conf        usb.WorkerPoolProfile
 
-	cmdQueue    chan protocol.CmdSubmit
-	retQueue    chan protocol.RetSubmit
-	unlinkQueue chan protocol.RetUnlink
+	cmdQueue    chan command.CmdSubmit
+	retQueue    chan command.RetSubmit
+	unlinkQueue chan command.RetUnlink
 
 	processingURBsLock sync.RWMutex
 	processingURBs     map[uint32]uint8
@@ -55,9 +55,9 @@ func NewWorkerPool(replyWriter io.Writer, logger *slog.Logger) WorkerPool {
 		logger:         logger,
 		replyWriter:    replyWriter,
 		processingURBs: make(map[uint32]uint8),
-		cmdQueue:       make(chan protocol.CmdSubmit, URB_QUEUE_SIZE),
-		retQueue:       make(chan protocol.RetSubmit, URB_QUEUE_SIZE),
-		unlinkQueue:    make(chan protocol.RetUnlink, URB_QUEUE_SIZE),
+		cmdQueue:       make(chan command.CmdSubmit, URB_QUEUE_SIZE),
+		retQueue:       make(chan command.RetSubmit, URB_QUEUE_SIZE),
+		unlinkQueue:    make(chan command.RetUnlink, URB_QUEUE_SIZE),
 	}
 }
 
@@ -121,11 +121,11 @@ func (p *workerPoolImpl) markAsReplied(seqNum uint32) bool {
 	return res
 }
 
-func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
+func (p *workerPoolImpl) Unlink(cmd command.CmdUnlink) error {
 	p.logger.Debug("Unlink request received", "data", cmd)
-	retUnlink := protocol.RetUnlink{
-		CmdHeader: protocol.CmdHeader{
-			Command: protocol.RET_UNLINK,
+	retUnlink := command.RetUnlink{
+		CmdHeader: command.CmdHeader{
+			Command: command.RET_UNLINK,
 			SeqNum:  cmd.SeqNum,
 		},
 		Status: 0,
@@ -145,7 +145,7 @@ func (p *workerPoolImpl) Unlink(cmd protocol.CmdUnlink) error {
 	return nil
 }
 
-func (p *workerPoolImpl) PublishCmdSubmit(urb protocol.CmdSubmit) {
+func (p *workerPoolImpl) PublishCmdSubmit(urb command.CmdSubmit) {
 	p.logger.Debug("Received CmdSubmit", "data", urb)
 	if !p.markAsProcessing(urb.SeqNum) {
 		p.logger.Error("Found duplicated URB, ignoring", "urb", urb)
