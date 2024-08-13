@@ -1,10 +1,11 @@
-package protocol
+package hid
 
 import (
 	"encoding/binary"
 	"fmt"
 	"io"
 
+	"github.com/ntchjb/usbip-virtual-device/usb/protocol"
 	"github.com/ntchjb/usbip-virtual-device/usbip/stream"
 )
 
@@ -12,7 +13,7 @@ type HIDDescriptor struct {
 	// Numeric expression that is the total size of the HID descriptor.
 	BLength uint8
 	// Constant name specifying type of HID descriptor.
-	BDescriptorType DescriptorType
+	BDescriptorType protocol.DescriptorType
 	// Numeric expression identifying the HIDClass Specification release.
 	BCDHID uint16
 	// Numeric expression identifying country code of the localized hardware.
@@ -20,7 +21,7 @@ type HIDDescriptor struct {
 	// Numeric expression specifying the number of class descriptors (always at least one i.e. Report descriptor.)
 	BNumDescriptors uint8
 	// Constant name identifying type of class descriptor. See Section 7.1.2: Set_Descriptor Request for a table of class descriptor constants.
-	BClassDescriptorType DescriptorType
+	BClassDescriptorType protocol.DescriptorType
 	// Numeric expression that is the total size of the Report descriptor.
 	WDescriptorLength uint16
 	// List of optional descriptor types
@@ -29,23 +30,23 @@ type HIDDescriptor struct {
 
 type OptionalHIDDescriptorTypes struct {
 	// Constant name specifying type of optional descriptor.
-	BOptionalDescriptorType DescriptorType
+	BOptionalDescriptorType protocol.DescriptorType
 	// Numeric expression that is the total size of the optional descriptor.
 	BOptionalDescriptorLength uint16
 }
 
 func (h *HIDDescriptor) Decode(reader io.Reader) error {
-	buf, err := stream.Read(reader, HID_DESCRIPTOR_LENGTH)
+	buf, err := stream.Read(reader, protocol.HID_DESCRIPTOR_LENGTH)
 	if err != nil {
 		return fmt.Errorf("unable to read HID descriptor from stream: %w", err)
 	}
 
 	h.BLength = buf[0]
-	h.BDescriptorType = DescriptorType(buf[1])
+	h.BDescriptorType = protocol.DescriptorType(buf[1])
 	h.BCDHID = binary.LittleEndian.Uint16(buf[2:4])
 	h.BCountryCode = buf[4]
 	h.BNumDescriptors = buf[5]
-	h.BClassDescriptorType = DescriptorType(buf[6])
+	h.BClassDescriptorType = protocol.DescriptorType(buf[6])
 	h.WDescriptorLength = binary.LittleEndian.Uint16(buf[7:9])
 
 	if h.BNumDescriptors > 1 {
@@ -55,7 +56,7 @@ func (h *HIDDescriptor) Decode(reader io.Reader) error {
 			if err != nil {
 				return fmt.Errorf("unable to read optional HID descriptor type from stream: %w", err)
 			}
-			h.OptionalDescriptorTypes[i].BOptionalDescriptorType = DescriptorType(buf[0])
+			h.OptionalDescriptorTypes[i].BOptionalDescriptorType = protocol.DescriptorType(buf[0])
 			h.OptionalDescriptorTypes[i].BOptionalDescriptorLength = binary.LittleEndian.Uint16(buf[1:3])
 		}
 	}
@@ -67,7 +68,7 @@ func (h *HIDDescriptor) Encode(writer io.Writer) error {
 	if int(h.BNumDescriptors) != len(h.OptionalDescriptorTypes)+1 {
 		return fmt.Errorf("number of descriptors does not equal to actual number, expected %d, got %d", h.BNumDescriptors, len(h.OptionalDescriptorTypes)+1)
 	}
-	buf := make([]byte, HID_DESCRIPTOR_LENGTH)
+	buf := make([]byte, protocol.HID_DESCRIPTOR_LENGTH)
 
 	buf[0] = h.BLength
 	buf[1] = byte(h.BDescriptorType)

@@ -1,10 +1,11 @@
-package protocol_test
+package hid_test
 
 import (
 	"bytes"
 	"testing"
 
 	"github.com/ntchjb/usbip-virtual-device/usb/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usb/protocol/hid"
 	usbipprot "github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,7 @@ func TestStandardHIDDescriptor(t *testing.T) {
 	}{
 		{
 			name: "StandardEndpointDescriptor",
-			obj: &protocol.HIDDescriptor{
+			obj: &hid.HIDDescriptor{
 				BLength:              protocol.HID_DESCRIPTOR_LENGTH,
 				BDescriptorType:      protocol.DESCRIPTOR_TYPE_HID,
 				BCDHID:               0x0110,
@@ -39,14 +40,14 @@ func TestStandardHIDDescriptor(t *testing.T) {
 				0x3F, 0x00,
 			},
 			newObj: func() usbipprot.Serializer {
-				return &protocol.HIDDescriptor{}
+				return &hid.HIDDescriptor{}
 			},
 			encErr: nil,
 			decErr: nil,
 		},
 		{
 			name: "StandardEndpointDescriptor - With Optional",
-			obj: &protocol.HIDDescriptor{
+			obj: &hid.HIDDescriptor{
 				BLength:              protocol.HID_DESCRIPTOR_LENGTH + 3,
 				BDescriptorType:      protocol.DESCRIPTOR_TYPE_HID,
 				BCDHID:               0x0110,
@@ -54,7 +55,7 @@ func TestStandardHIDDescriptor(t *testing.T) {
 				BNumDescriptors:      0x03,
 				BClassDescriptorType: 0x22,
 				WDescriptorLength:    0x003F,
-				OptionalDescriptorTypes: []protocol.OptionalHIDDescriptorTypes{
+				OptionalDescriptorTypes: []hid.OptionalHIDDescriptorTypes{
 					{
 						BOptionalDescriptorType:   protocol.DESCRIPTOR_TYPE_HID_REPORT,
 						BOptionalDescriptorLength: 0x0041,
@@ -79,7 +80,7 @@ func TestStandardHIDDescriptor(t *testing.T) {
 				0x42, 0x00,
 			},
 			newObj: func() usbipprot.Serializer {
-				return &protocol.HIDDescriptor{}
+				return &hid.HIDDescriptor{}
 			},
 			encErr: nil,
 			decErr: nil,

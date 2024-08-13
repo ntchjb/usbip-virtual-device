@@ -9,6 +9,7 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usb/protocol/hid"
 	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 )
 
@@ -227,8 +228,8 @@ func (g *genericHIDMouseDevice) getEndpointDescriptor() []usbprotocol.StandardEn
 	}
 }
 
-func (g *genericHIDMouseDevice) getHIDDescriptor(hidReportLength uint16) usbprotocol.HIDDescriptor {
-	return usbprotocol.HIDDescriptor{
+func (g *genericHIDMouseDevice) getHIDDescriptor(hidReportLength uint16) hid.HIDDescriptor {
+	return hid.HIDDescriptor{
 		BLength:              usbprotocol.HID_DESCRIPTOR_LENGTH,
 		BDescriptorType:      usbprotocol.DESCRIPTOR_TYPE_HID,
 		BCDHID:               usbprotocol.HID_CLASS_SPEC_VERSION,
