@@ -28,6 +28,10 @@ type HIDDescriptor struct {
 	OptionalDescriptorTypes []OptionalHIDDescriptorTypes
 }
 
+const (
+	HID_DESCRIPTOR_LENGTH = 9
+)
+
 type OptionalHIDDescriptorTypes struct {
 	// Constant name specifying type of optional descriptor.
 	BOptionalDescriptorType descriptor.DescriptorType
@@ -36,7 +40,7 @@ type OptionalHIDDescriptorTypes struct {
 }
 
 func (h *HIDDescriptor) Decode(reader io.Reader) error {
-	buf, err := stream.Read(reader, descriptor.HID_DESCRIPTOR_LENGTH)
+	buf, err := stream.Read(reader, HID_DESCRIPTOR_LENGTH)
 	if err != nil {
 		return fmt.Errorf("unable to read HID descriptor from stream: %w", err)
 	}
@@ -68,7 +72,7 @@ func (h *HIDDescriptor) Encode(writer io.Writer) error {
 	if int(h.BNumDescriptors) != len(h.OptionalDescriptorTypes)+1 {
 		return fmt.Errorf("number of descriptors does not equal to actual number, expected %d, got %d", h.BNumDescriptors, len(h.OptionalDescriptorTypes)+1)
 	}
-	buf := make([]byte, descriptor.HID_DESCRIPTOR_LENGTH)
+	buf := make([]byte, HID_DESCRIPTOR_LENGTH)
 
 	buf[0] = h.BLength
 	buf[1] = byte(h.BDescriptorType)

@@ -232,7 +232,7 @@ func (g *genericHIDMouseDevice) getEndpointDescriptor() []descriptor.StandardEnd
 
 func (g *genericHIDMouseDevice) getHIDDescriptor(hidReportLength uint16) hid.HIDDescriptor {
 	return hid.HIDDescriptor{
-		BLength:              descriptor.HID_DESCRIPTOR_LENGTH,
+		BLength:              hid.HID_DESCRIPTOR_LENGTH,
 		BDescriptorType:      descriptor.DESCRIPTOR_TYPE_HID,
 		BCDHID:               usbprotocol.HID_CLASS_SPEC_VERSION,
 		BCountryCode:         0,

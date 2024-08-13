@@ -22,7 +22,7 @@ func TestStandardHIDDescriptor(t *testing.T) {
 		{
 			name: "StandardEndpointDescriptor",
 			obj: &hid.HIDDescriptor{
-				BLength:              descriptor.HID_DESCRIPTOR_LENGTH,
+				BLength:              hid.HID_DESCRIPTOR_LENGTH,
 				BDescriptorType:      descriptor.DESCRIPTOR_TYPE_HID,
 				BCDHID:               0x0110,
 				BCountryCode:         0x01,
@@ -48,7 +48,7 @@ func TestStandardHIDDescriptor(t *testing.T) {
 		{
 			name: "StandardEndpointDescriptor - With Optional",
 			obj: &hid.HIDDescriptor{
-				BLength:              descriptor.HID_DESCRIPTOR_LENGTH + 3,
+				BLength:              hid.HID_DESCRIPTOR_LENGTH + 3,
 				BDescriptorType:      descriptor.DESCRIPTOR_TYPE_HID,
 				BCDHID:               0x0110,
 				BCountryCode:         0x01,

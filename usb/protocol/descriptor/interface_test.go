@@ -6,6 +6,7 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb/protocol"
 	"github.com/ntchjb/usbip-virtual-device/usb/protocol/descriptor"
+	"github.com/ntchjb/usbip-virtual-device/usb/protocol/hid"
 	usbipprot "github.com/ntchjb/usbip-virtual-device/usbip/protocol"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +23,7 @@ func TestStandardInterfaceDescriptor(t *testing.T) {
 		{
 			name: "StandardInterfaceDescriptor",
 			obj: &descriptor.StandardInterfaceDescriptor{
-				BLength:            descriptor.HID_DESCRIPTOR_LENGTH,
+				BLength:            hid.HID_DESCRIPTOR_LENGTH,
 				BDescriptorType:    descriptor.DESCRIPTOR_TYPE_HID,
 				BInterfaceNumber:   0x01,
 				BAlternateSetting:  0x01,
