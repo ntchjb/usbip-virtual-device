@@ -13,7 +13,7 @@ import (
 	reflect "reflect"
 
 	usb "github.com/ntchjb/usbip-virtual-device/usb"
-	protocol "github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	command "github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,7 +41,7 @@ func (m *MockWorkerPool) EXPECT() *MockWorkerPoolMockRecorder {
 }
 
 // PublishCmdSubmit mocks base method.
-func (m *MockWorkerPool) PublishCmdSubmit(urb protocol.CmdSubmit) {
+func (m *MockWorkerPool) PublishCmdSubmit(urb command.CmdSubmit) {
 	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "PublishCmdSubmit", urb)
 }
@@ -93,7 +93,7 @@ func (mr *MockWorkerPoolMockRecorder) Stop() *gomock.Call {
 }
 
 // Unlink mocks base method.
-func (m *MockWorkerPool) Unlink(header protocol.CmdUnlink) error {
+func (m *MockWorkerPool) Unlink(header command.CmdUnlink) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Unlink", header)
 	ret0, _ := ret[0].(error)

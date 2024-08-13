@@ -8,7 +8,8 @@ import (
 	"net"
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	operation "github.com/ntchjb/usbip-virtual-device/usbip/protocol/op"
 )
 
 type HandlerLevel uint8
@@ -19,12 +20,12 @@ const (
 )
 
 type RequestHandler interface {
-	HandleOpHeader() (protocol.OpHeader, error)
-	HandleCmdHeader() (protocol.CmdHeader, error)
-	HandleOpDevList(opHeader protocol.OpHeader) error
-	HandleOpImport(opHeader protocol.OpHeader) error
-	HandleCmdSubmit(cmdHeader protocol.CmdHeader) error
-	HandleCmdUnlink(cmdHeader protocol.CmdHeader) error
+	HandleOpHeader() (operation.OpHeader, error)
+	HandleCmdHeader() (command.CmdHeader, error)
+	HandleOpDevList(opHeader operation.OpHeader) error
+	HandleOpImport(opHeader operation.OpHeader) error
+	HandleCmdSubmit(cmdHeader command.CmdHeader) error
+	HandleCmdUnlink(cmdHeader command.CmdHeader) error
 	GetHandlerLevel() HandlerLevel
 }
 
@@ -47,21 +48,21 @@ func NewRequestHandler(conn net.Conn, registrar usb.DeviceRegistrar, worker Work
 	}
 }
 
-func (op *requestHandlerImpl) HandleOpHeader() (protocol.OpHeader, error) {
-	var opHeader protocol.OpHeader
+func (op *requestHandlerImpl) HandleOpHeader() (operation.OpHeader, error) {
+	var opHeader operation.OpHeader
 	// When idle, logic will stuck here, waiting for new data
 	if err := opHeader.Decode(op.conn); err != nil {
 		return opHeader, fmt.Errorf("unable to decode OpHeader: %w", err)
 	}
-	if opHeader.Version != protocol.VERSION {
-		return opHeader, fmt.Errorf("unsupported USBIP protocol version, expected: %x, actual: %x", protocol.VERSION, opHeader)
+	if opHeader.Version != operation.VERSION {
+		return opHeader, fmt.Errorf("unsupported USBIP protocol version, expected: %x, actual: %x", operation.VERSION, opHeader)
 	}
 
 	return opHeader, nil
 }
 
-func (op *requestHandlerImpl) HandleCmdHeader() (protocol.CmdHeader, error) {
-	var cmdHeader protocol.CmdHeader
+func (op *requestHandlerImpl) HandleCmdHeader() (command.CmdHeader, error) {
+	var cmdHeader command.CmdHeader
 	// When idle, logic will stuck here, waiting for new data
 	if err := cmdHeader.Decode(op.conn); err != nil {
 		return cmdHeader, fmt.Errorf("unable to decode CmdHeader: %w", err)
@@ -70,21 +71,21 @@ func (op *requestHandlerImpl) HandleCmdHeader() (protocol.CmdHeader, error) {
 	return cmdHeader, nil
 }
 
-func (op *requestHandlerImpl) HandleOpDevList(opHeader protocol.OpHeader) error {
+func (op *requestHandlerImpl) HandleOpDevList(opHeader operation.OpHeader) error {
 	// TODO:
 	// 1. Get device list from registrar
 	// 2. Reply a list of USB devices
 	devices := op.registrar.GetAvailableDevices()
-	var reply protocol.OpRepDevList
-	var replyHeader protocol.OpHeader
+	var reply operation.OpRepDevList
+	var replyHeader operation.OpHeader
 
 	replyHeader.Version = opHeader.Version
-	replyHeader.CommandOrReplyCode = protocol.OP_REP_DEVLIST
+	replyHeader.CommandOrReplyCode = operation.OP_REP_DEVLIST
 	replyHeader.Status = 0
 
 	reply.DeviceCount = uint32(len(devices))
 	if len(devices) > 0 {
-		reply.Devices = make([]protocol.DeviceInfo, len(devices))
+		reply.Devices = make([]operation.DeviceInfo, len(devices))
 	}
 	for i, device := range devices {
 		reply.Devices[i] = device.GetDeviceInfo()
@@ -101,25 +102,25 @@ func (op *requestHandlerImpl) HandleOpDevList(opHeader protocol.OpHeader) error 
 	return nil
 }
 
-func (op *requestHandlerImpl) HandleOpImport(opHeader protocol.OpHeader) error {
-	opReqImport := protocol.OpReqImport{
+func (op *requestHandlerImpl) HandleOpImport(opHeader operation.OpHeader) error {
+	opReqImport := operation.OpReqImport{
 		OpHeader: opHeader,
 	}
-	var reply protocol.OpRepImport
-	var replyHeader protocol.OpHeader
+	var reply operation.OpRepImport
+	var replyHeader operation.OpHeader
 
 	if err := opReqImport.Decode(op.conn); err != nil {
 		return fmt.Errorf("unable to decode OpReqImport: %w", err)
 	}
 
 	replyHeader.Version = opHeader.Version
-	replyHeader.CommandOrReplyCode = protocol.OP_REP_IMPORT
+	replyHeader.CommandOrReplyCode = operation.OP_REP_IMPORT
 	device, err := op.registrar.GetDevice(opReqImport.BusID)
 	if err != nil {
 		op.logger.Error("unable to get USB device from registrar", "err", err)
-		replyHeader.Status = protocol.OP_STATUS_ERROR
+		replyHeader.Status = operation.OP_STATUS_ERROR
 	} else {
-		replyHeader.Status = protocol.OP_STATUS_OK
+		replyHeader.Status = operation.OP_STATUS_OK
 		reply.DeviceInfo = device.GetDeviceInfo().DeviceInfoTruncated
 	}
 
@@ -127,7 +128,7 @@ func (op *requestHandlerImpl) HandleOpImport(opHeader protocol.OpHeader) error {
 	if err := replyHeader.Encode(op.conn); err != nil {
 		return fmt.Errorf("unable to encode OpHeader: for OpRepImport: %w", err)
 	}
-	if replyHeader.Status != protocol.OP_STATUS_OK {
+	if replyHeader.Status != operation.OP_STATUS_OK {
 		return io.EOF
 	}
 
@@ -143,9 +144,9 @@ func (op *requestHandlerImpl) HandleOpImport(opHeader protocol.OpHeader) error {
 	return nil
 }
 
-func (op *requestHandlerImpl) HandleCmdSubmit(cmdHeader protocol.CmdHeader) error {
+func (op *requestHandlerImpl) HandleCmdSubmit(cmdHeader command.CmdHeader) error {
 	// TODO: Handle CmdSubmit in asynchronous way
-	cmdSubmit := protocol.CmdSubmit{
+	cmdSubmit := command.CmdSubmit{
 		CmdHeader: cmdHeader,
 	}
 
@@ -157,8 +158,8 @@ func (op *requestHandlerImpl) HandleCmdSubmit(cmdHeader protocol.CmdHeader) erro
 	return nil
 }
 
-func (op *requestHandlerImpl) HandleCmdUnlink(cmdHeader protocol.CmdHeader) error {
-	cmdUnlink := protocol.CmdUnlink{
+func (op *requestHandlerImpl) HandleCmdUnlink(cmdHeader command.CmdHeader) error {
+	cmdUnlink := command.CmdUnlink{
 		CmdHeader: cmdHeader,
 	}
 	if err := cmdUnlink.Decode(op.conn); err != nil {

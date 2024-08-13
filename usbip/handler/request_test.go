@@ -10,7 +10,8 @@ import (
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
 	"github.com/ntchjb/usbip-virtual-device/usbip/handler"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/op"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 )
@@ -45,23 +46,23 @@ var (
 		0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB,
 	}
 
-	opDevListReq = protocol.OpReqDevList{
-		OpHeader: protocol.OpHeader{
-			Version:            protocol.VERSION,
-			CommandOrReplyCode: protocol.OP_REQ_DEVLIST,
-			Status:             protocol.OP_STATUS_OK,
+	opDevListReq = op.OpReqDevList{
+		OpHeader: op.OpHeader{
+			Version:            op.VERSION,
+			CommandOrReplyCode: op.OP_REQ_DEVLIST,
+			Status:             op.OP_STATUS_OK,
 		},
 	}
-	opDevListRep = protocol.OpRepDevList{
-		OpHeader: protocol.OpHeader{
-			Version:            protocol.VERSION,
-			CommandOrReplyCode: protocol.OP_REP_DEVLIST,
+	opDevListRep = op.OpRepDevList{
+		OpHeader: op.OpHeader{
+			Version:            op.VERSION,
+			CommandOrReplyCode: op.OP_REP_DEVLIST,
 			Status:             0,
 		},
 		DeviceCount: 2,
-		Devices: []protocol.DeviceInfo{
+		Devices: []op.DeviceInfo{
 			{
-				DeviceInfoTruncated: protocol.DeviceInfoTruncated{
+				DeviceInfoTruncated: op.DeviceInfoTruncated{
 					Path: deviceInfoPath,
 					BusID: [32]byte{
 						0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
@@ -82,7 +83,7 @@ var (
 					BNumConfigurations:  3,
 					BNumInterfaces:      3,
 				},
-				Interfaces: []protocol.DeviceInterface{
+				Interfaces: []op.DeviceInterface{
 					{
 						BInterfaceClass:    usbprotocol.CLASS_HID,
 						BInterfaceSubclass: usbprotocol.SUBCLASS_HID_BOOT_INTERFACE,
@@ -104,7 +105,7 @@ var (
 				},
 			},
 			{
-				DeviceInfoTruncated: protocol.DeviceInfoTruncated{
+				DeviceInfoTruncated: op.DeviceInfoTruncated{
 					Path: deviceInfoPath,
 					BusID: [32]byte{
 						0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA,
@@ -125,7 +126,7 @@ var (
 					BNumConfigurations:  3,
 					BNumInterfaces:      3,
 				},
-				Interfaces: []protocol.DeviceInterface{
+				Interfaces: []op.DeviceInterface{
 					{
 						BInterfaceClass:    usbprotocol.CLASS_HID,
 						BInterfaceSubclass: usbprotocol.SUBCLASS_HID_BOOT_INTERFACE,
@@ -148,29 +149,29 @@ var (
 			},
 		},
 	}
-	opDevImport = protocol.OpReqImport{
-		OpHeader: protocol.OpHeader{
-			Version:            protocol.VERSION,
-			CommandOrReplyCode: protocol.OP_REQ_IMPORT,
+	opDevImport = op.OpReqImport{
+		OpHeader: op.OpHeader{
+			Version:            op.VERSION,
+			CommandOrReplyCode: op.OP_REQ_IMPORT,
 			Status:             0,
 		},
 		BusID: opDevListRep.Devices[1].BusID,
 	}
-	opDevImportRep = protocol.OpRepImport{
-		OpHeader: protocol.OpHeader{
-			Version:            protocol.VERSION,
-			CommandOrReplyCode: protocol.OP_REP_IMPORT,
+	opDevImportRep = op.OpRepImport{
+		OpHeader: op.OpHeader{
+			Version:            op.VERSION,
+			CommandOrReplyCode: op.OP_REP_IMPORT,
 			Status:             0,
 		},
 		DeviceInfo: opDevListRep.Devices[1].DeviceInfoTruncated,
 	}
 
-	cmdSubmit = protocol.CmdSubmit{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_SUBMIT,
+	cmdSubmit = command.CmdSubmit{
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_SUBMIT,
 			SeqNum:         1,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		TransferFlags:        0,
@@ -183,12 +184,12 @@ var (
 		ISOPacketDescriptors: nil,
 	}
 
-	cmdUnlink = protocol.CmdUnlink{
-		CmdHeader: protocol.CmdHeader{
-			Command:        protocol.CMD_UNLINK,
+	cmdUnlink = command.CmdUnlink{
+		CmdHeader: command.CmdHeader{
+			Command:        command.CMD_UNLINK,
 			SeqNum:         2,
 			DevID:          0x00010001,
-			Direction:      protocol.DIR_OUT,
+			Direction:      command.DIR_OUT,
 			EndpointNumber: 1,
 		},
 		UnlinkSeqNum: 1,
@@ -234,7 +235,7 @@ func TestRequestHandler(t *testing.T) {
 		err := opDevListReq.Encode(client)
 		assert.NoError(t, err)
 
-		actualOpDevListRep := protocol.OpRepDevList{}
+		actualOpDevListRep := op.OpRepDevList{}
 		err = actualOpDevListRep.OpHeader.Decode(client)
 		assert.NoError(t, err)
 		err = actualOpDevListRep.Decode(client)
@@ -246,7 +247,7 @@ func TestRequestHandler(t *testing.T) {
 		err = opDevImport.Encode(client)
 		assert.NoError(t, err)
 
-		actualOpImportRep := protocol.OpRepImport{}
+		actualOpImportRep := op.OpRepImport{}
 		err = actualOpImportRep.OpHeader.Decode(client)
 		assert.NoError(t, err)
 		err = actualOpImportRep.Decode(client)

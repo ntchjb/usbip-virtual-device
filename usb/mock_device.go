@@ -13,7 +13,8 @@ import (
 	reflect "reflect"
 
 	protocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
-	protocol0 "github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	command "github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	op "github.com/ntchjb/usbip-virtual-device/usbip/protocol/op"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -55,10 +56,10 @@ func (mr *MockDeviceMockRecorder) GetBusID() *gomock.Call {
 }
 
 // GetDeviceInfo mocks base method.
-func (m *MockDevice) GetDeviceInfo() protocol0.DeviceInfo {
+func (m *MockDevice) GetDeviceInfo() op.DeviceInfo {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDeviceInfo")
-	ret0, _ := ret[0].(protocol0.DeviceInfo)
+	ret0, _ := ret[0].(op.DeviceInfo)
 	return ret0
 }
 
@@ -83,10 +84,10 @@ func (mr *MockDeviceMockRecorder) GetWorkerPoolProfile() *gomock.Call {
 }
 
 // Process mocks base method.
-func (m *MockDevice) Process(data protocol0.CmdSubmit) protocol0.RetSubmit {
+func (m *MockDevice) Process(data command.CmdSubmit) command.RetSubmit {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Process", data)
-	ret0, _ := ret[0].(protocol0.RetSubmit)
+	ret0, _ := ret[0].(command.RetSubmit)
 	return ret0
 }
 

@@ -2,7 +2,8 @@ package usb
 
 import (
 	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
-	"github.com/ntchjb/usbip-virtual-device/usbip/protocol"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/op"
 )
 
 type WorkerPoolProfile struct {
@@ -24,9 +25,9 @@ type Device interface {
 	// GetBusID returns bus ID of this device
 	GetBusID() usbprotocol.BusID
 	// GetDeviceInfo returns device information used by OpDevList
-	GetDeviceInfo() protocol.DeviceInfo
+	GetDeviceInfo() op.DeviceInfo
 	// GetURBProcessor returns an instance of processor of this device, used by handler's worker pool
-	Process(data protocol.CmdSubmit) protocol.RetSubmit
+	Process(data command.CmdSubmit) command.RetSubmit
 	// GetWorkerPoolProfile indicates how worker pool behave for this device, such as, set worker count to 1 to process URB requests in sequences
 	GetWorkerPoolProfile() WorkerPoolProfile
 }
