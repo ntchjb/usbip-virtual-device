@@ -59,6 +59,9 @@ type UsagePageTable map[UsagePageID]UsageTable
 
 func (u UsagePageTable) GetUsageName(pageID UsagePageID, id UsageID) string {
 	if indexed, ok := u[pageID]; !ok {
+		if pageID >= 0xFF00 && pageID <= 0xFFFF {
+			return USAGE_VENDOR_NAME
+		}
 		return USAGE_RESERVED_NAME
 	} else {
 		return indexed.GetUsageName(id)
