@@ -53,7 +53,7 @@ var (
 
 			return "Reserved"
 		},
-		// HID_REPORT_TAG_END_COLLECTION:
+		HID_REPORT_TAG_END_COLLECTION: func(globalItem HIDReportGlobalState, item []byte) string { return "" },
 		HID_REPORT_TAG_USAGE_PAGE: func(globalState HIDReportGlobalState, item []byte) string {
 			return usage.IndexedUsageTable.GetUsagePageName(usage.UsagePageID(common.ParseUint(item)))
 		},
@@ -96,8 +96,8 @@ var (
 		HID_REPORT_TAG_REPORT_SIZE:   displayUintData,
 		HID_REPORT_TAG_REPORT_ID:     displayUintData,
 		HID_REPORT_TAG_REOPORT_COUNT: displayUintData,
-		// HID_REPORT_TAG_PUSH:
-		// HID_REPORT_TAG_POP:
+		HID_REPORT_TAG_PUSH:          func(globalItem HIDReportGlobalState, item []byte) string { return "" },
+		HID_REPORT_TAG_POP:           func(globalItem HIDReportGlobalState, item []byte) string { return "" },
 		HID_REPORT_TAG_USAGE: func(globalState HIDReportGlobalState, item []byte) string {
 			usagePageID, usageID := usage.ParseUsagePageID(globalState.UsagePage, item)
 			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID)

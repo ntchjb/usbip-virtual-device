@@ -1,8 +1,9 @@
 package report
 
 import (
-	"encoding/hex"
+	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -36,6 +37,10 @@ type HIDReportLocalState struct {
 	Delimiter         bool
 }
 
+var (
+	ErrEmptyData = errors.New("empty data")
+)
+
 type HIDReportDescriptor []byte
 
 func (h HIDReportDescriptor) GetItemPrefix(idx int) HIDReportItemPrefix {
@@ -53,12 +58,16 @@ func (h HIDReportDescriptor) String() (string, error) {
 	hidReportItemSize := []int{0, 1, 2, 4}
 
 	if len(h) == 0 {
-		return "", fmt.Errorf("empty data")
+		return "", ErrEmptyData
 	}
 
 	for cursor < len(h) {
 		prefix := h.GetItemPrefix(cursor)
 		tag := HIDReportTag((prefix.BTag << 4) | (uint8(prefix.BType) << 2))
+		// Handle Long item as special case
+		if h[cursor] == byte(HID_REPORT_TAG_LONG_ITEM) {
+			tag = HIDReportTag(h[cursor])
+		}
 		dataLength := hidReportItemSize[prefix.BSize]
 		var detail string
 		dataStartIdx := cursor + 1
@@ -70,7 +79,7 @@ func (h HIDReportDescriptor) String() (string, error) {
 			dataLength = int(h[dataStartIdx]) + 2
 		}
 		if dataStartIdx+dataLength > len(h) {
-			return "", fmt.Errorf("data is too short, need parsing tag: %x, need to read from index %d with size %d", tag, cursor, hidReportItemSize[prefix.BSize])
+			return "", fmt.Errorf("data is too short, need parsing data for tag: %x, need to read from index %d with size %d", tag, dataStartIdx, dataLength)
 		}
 
 		if prefix.BType == HID_REPORT_TYPE_GLOBAL {
@@ -92,12 +101,17 @@ func (h HIDReportDescriptor) String() (string, error) {
 		if itemName, ok := HIDReportTagNames[tag]; ok {
 			builder.WriteString(itemName)
 		} else {
-			builder.WriteString("Unknown Item: 0x")
-			builder.WriteString(hex.EncodeToString([]byte{byte(tag)}))
+			builder.WriteString("Unknown Item: ")
+			builder.WriteString(fmt.Sprintf("0x%02X", byte(tag)))
 		}
 		// #3: Write data part of that item
 		if int(tag) < len(HIDReportDataStringParserMap) && HIDReportDataStringParserMap[tag] != nil {
-			detail = HIDReportDataStringParserMap[tag](globalState, h[cursor+1:cursor+1+dataLength])
+			detail = HIDReportDataStringParserMap[tag](globalState, h[dataStartIdx:dataStartIdx+dataLength])
+		} else {
+			reversed := make([]byte, dataLength)
+			copy(reversed, h[dataStartIdx:dataStartIdx+dataLength])
+			slices.Reverse(reversed)
+			detail = fmt.Sprintf("0x%X", reversed)
 		}
 		if len(detail) > 0 {
 			builder.WriteString(" (")
@@ -110,7 +124,7 @@ func (h HIDReportDescriptor) String() (string, error) {
 		if tag == HID_REPORT_TAG_COLLECTION {
 			currTabs++
 		}
-		cursor += 1 + dataLength
+		cursor = dataStartIdx + dataLength
 	}
 
 	return builder.String(), nil
