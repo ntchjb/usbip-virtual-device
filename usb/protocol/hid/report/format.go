@@ -1,8 +1,8 @@
 package report
 
 import (
-	"encoding/hex"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -47,9 +47,11 @@ var (
 		HID_REPORT_TAG_COLLECTION: func(globalState HIDReportGlobalState, item []byte) string {
 			if name, ok := HIDReportCollectionNames[HIDReportCollectionData(item[0])]; ok {
 				return name
+			} else if item[0] >= 0x80 && item[0] <= 0xFF {
+				return "Vendor-defined"
 			}
 
-			return "Unknown"
+			return "Reserved"
 		},
 		// HID_REPORT_TAG_END_COLLECTION:
 		HID_REPORT_TAG_USAGE_PAGE: func(globalState HIDReportGlobalState, item []byte) string {
@@ -62,9 +64,13 @@ var (
 		HID_REPORT_TAG_UNIT_EXPONENT:    displayIntData,
 		HID_REPORT_TAG_UNIT: func(globalState HIDReportGlobalState, item []byte) string {
 			var builder strings.Builder
-			unitNames, ok := HIDReportUnitMap[HIDReportUnitSystem(item[0]&0b0000_1111)]
+			unitSystemID := HIDReportUnitSystem(item[0] & 0b0000_1111)
+			if unitSystemID == HID_REPORT_UNIT_SYSTEM_NONE {
+				return "None"
+			}
+			unitNames, ok := HIDReportUnitMap[unitSystemID]
 			if !ok {
-				return "Unknown System: 0x" + hex.EncodeToString([]byte{item[0] & 0b0000_1111})
+				return "Unknown System: " + displayUintHexData(uint32(item[0]&0b0000_1111))
 			}
 			units := ParseUnits(item)
 			if units.Length != 0 {
@@ -85,7 +91,7 @@ var (
 			if units.LuminousIntensity != 0 {
 				buildUnitItemString(&builder, unitNames.LuminousIntensity, units.LuminousIntensity)
 			}
-			return builder.String()
+			return strings.TrimSpace(builder.String())
 		},
 		HID_REPORT_TAG_REPORT_SIZE:   displayUintData,
 		HID_REPORT_TAG_REPORT_ID:     displayUintData,
@@ -98,11 +104,11 @@ var (
 		},
 		HID_REPORT_TAG_USAGE_MINIMUM: func(globalState HIDReportGlobalState, item []byte) string {
 			usagePageID, usageID := usage.ParseUsagePageID(globalState.UsagePage, item)
-			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID) + "(" + displayUintHexData(uint32(usagePageID)) + "," + displayUintHexData(uint32(usageID)) + ")"
+			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID) + " (" + displayUintHexData(uint32(usagePageID)) + "," + displayUintHexData(uint32(usageID)) + ")"
 		},
 		HID_REPORT_TAG_USAGE_MAXIMUM: func(globalState HIDReportGlobalState, item []byte) string {
 			usagePageID, usageID := usage.ParseUsagePageID(globalState.UsagePage, item)
-			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID) + "(" + displayUintHexData(uint32(usagePageID)) + "," + displayUintHexData(uint32(usageID)) + ")"
+			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID) + " (" + displayUintHexData(uint32(usagePageID)) + "," + displayUintHexData(uint32(usageID)) + ")"
 		},
 		HID_REPORT_TAG_DESIGNATOR_INDEX:   displayUintData,
 		HID_REPORT_TAG_DESIGNATOR_MINIMUM: displayUintData,
@@ -122,11 +128,14 @@ var (
 			bDataSize := item[0]
 			bLongItemTag := item[1]
 			var builder strings.Builder
+			reversed := make([]byte, bDataSize)
+			copy(reversed, item[2:2+bDataSize])
+			slices.Reverse(reversed)
 
 			builder.WriteString("Tag: ")
 			builder.WriteString(displayUintHexData(uint32(bLongItemTag)))
 			builder.WriteString(", Data: 0x")
-			builder.WriteString(hex.EncodeToString(item[2 : 2+bDataSize]))
+			builder.WriteString(fmt.Sprintf("%X", reversed))
 
 			return builder.String()
 		},

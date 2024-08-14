@@ -70,7 +70,9 @@ func (h HIDReportOutputData) String() string {
 	return builder.String()
 }
 
-type HIDReportFeatureData HIDReportOutputData
+type HIDReportFeatureData struct {
+	HIDReportOutputData
+}
 
 type HIDReportCollectionData uint8
 
@@ -106,10 +108,11 @@ func ParseInputReportItem(item []byte) HIDReportInputData {
 		res.IsNonLinear = common.ByteToBool((item[0] & 0b0001_0000) >> 4)
 		res.IsNoPreferredState = common.ByteToBool((item[0] & 0b0010_0000) >> 5)
 		res.IsNullState = common.ByteToBool((item[0] & 0b0100_0000) >> 6)
-
-	} else if len(item) > 1 {
+	}
+	if len(item) > 1 {
 		res.IsBufferedBytesOrBitField = common.ByteToBool(item[1] & 0b0000_0001)
 	}
+
 	return res
 }
 
@@ -124,7 +127,9 @@ func ParseOutputReportItem(item []byte) HIDReportOutputData {
 }
 
 func ParseFeatureReportItem(item []byte) HIDReportFeatureData {
-	return HIDReportFeatureData(ParseOutputReportItem(item))
+	return HIDReportFeatureData{
+		HIDReportOutputData: ParseOutputReportItem(item),
+	}
 }
 
 func ParseCollectionReportItem(item byte) HIDReportCollectionData {

@@ -3,6 +3,8 @@ package report
 import (
 	"strconv"
 	"strings"
+
+	"github.com/ntchjb/usbip-virtual-device/usb/protocol/hid/report/common"
 )
 
 type HIDReportUnitSystem uint8
@@ -59,7 +61,7 @@ var (
 			LuminousIntensity: "cd",   // Candela
 		},
 		HID_REPORT_UNIT_SYSTEM_ENGLISH_ROTATION: {
-			Length:            "°",    // Degrees
+			Length:            "deg",  // Degrees
 			Mass:              "slug", // Slug
 			Time:              "s",    // Second
 			Temperature:       "°F",   // Fahrenheit
@@ -87,11 +89,11 @@ func buildUnitItemString(builder *strings.Builder, name string, exponentValue in
 
 func ParseUnits(item []byte) HIDReportUnitExponent {
 	return HIDReportUnitExponent{
-		Length:            int8((item[0] & 0b1111_0000) >> 4),
-		Mass:              int8(item[1] & 0b0000_1111),
-		Time:              int8((item[1] & 0b1111_0000) >> 4),
-		Temperature:       int8(item[2] & 0b0000_1111),
-		Current:           int8((item[2] & 0b1111_0000) >> 4),
-		LuminousIntensity: int8(item[3] & 0b0000_1111),
+		Length:            common.ParseNibbleInt((item[0] & 0b1111_0000) >> 4),
+		Mass:              common.ParseNibbleInt(item[1] & 0b0000_1111),
+		Time:              common.ParseNibbleInt((item[1] & 0b1111_0000) >> 4),
+		Temperature:       common.ParseNibbleInt(item[2] & 0b0000_1111),
+		Current:           common.ParseNibbleInt((item[2] & 0b1111_0000) >> 4),
+		LuminousIntensity: common.ParseNibbleInt(item[3] & 0b0000_1111),
 	}
 }
