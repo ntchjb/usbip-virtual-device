@@ -61,7 +61,7 @@ func (h HIDReportDescriptor) String() (string, error) {
 		return "", ErrEmptyData
 	}
 
-	for cursor < len(h) {
+	for cursor < len(h) && h[cursor] != 0x00 {
 		prefix := h.GetItemPrefix(cursor)
 		tag := HIDReportTag((prefix.BTag << 4) | (uint8(prefix.BType) << 2))
 		// Handle Long item as special case
