@@ -48,7 +48,7 @@ var (
 		HID_REPORT_TAG_REPORT_ID: func(globalState *HIDReportGlobalState, item []byte) {
 			globalState.ReportID = uint8(common.ParseUint(item))
 		},
-		HID_REPORT_TAG_REOPORT_COUNT: func(globalState *HIDReportGlobalState, item []byte) {
+		HID_REPORT_TAG_REPORT_COUNT: func(globalState *HIDReportGlobalState, item []byte) {
 			globalState.ReportCount = common.ParseUint(item)
 		},
 		HID_REPORT_TAG_PUSH: func(globalState *HIDReportGlobalState, item []byte) {

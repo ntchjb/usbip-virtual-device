@@ -413,7 +413,7 @@ func TestHIDReportDataStringParseMap(t *testing.T) {
 		},
 		{
 			name:        "HID_REPORT_TAG_REOPORT_COUNT positive",
-			tag:         report.HID_REPORT_TAG_REOPORT_COUNT,
+			tag:         report.HID_REPORT_TAG_REPORT_COUNT,
 			globalState: report.HIDReportGlobalState{},
 			item: []byte{
 				0x07,
@@ -422,7 +422,7 @@ func TestHIDReportDataStringParseMap(t *testing.T) {
 		},
 		{
 			name:        "HID_REPORT_TAG_REOPORT_COUNT 16bit",
-			tag:         report.HID_REPORT_TAG_REOPORT_COUNT,
+			tag:         report.HID_REPORT_TAG_REPORT_COUNT,
 			globalState: report.HIDReportGlobalState{},
 			item: []byte{
 				0x07, 0x45,

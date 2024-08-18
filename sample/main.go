@@ -7,6 +7,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ntchjb/usbip-virtual-device/sample/echo"
+	"github.com/ntchjb/usbip-virtual-device/sample/mouse"
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	"github.com/ntchjb/usbip-virtual-device/usbip"
 )
@@ -16,12 +18,16 @@ func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
 	}))
-	mouse := NewGenericHIDMouseDevice(logger)
+	device1 := mouse.NewGenericHIDMouseDevice(logger)
+	device2 := echo.NewHIDEchoDevice(logger)
 	deviceRegistrar := usb.NewDeviceRegistrar(usb.DeviceRegistrarConfig{
 		BusNum:         1,
 		MaxDeviceCount: 10,
 	})
-	if err := deviceRegistrar.Register(mouse); err != nil {
+	if err := deviceRegistrar.Register(device1); err != nil {
+		panic(err)
+	}
+	if err := deviceRegistrar.Register(device2); err != nil {
 		panic(err)
 	}
 
@@ -42,6 +48,10 @@ func main() {
 	<-gracefulStop
 
 	if err := server.Close(); err != nil {
+		panic(err)
+	}
+
+	if err := deviceRegistrar.Close(); err != nil {
 		panic(err)
 	}
 }

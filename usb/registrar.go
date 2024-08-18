@@ -2,6 +2,7 @@ package usb
 
 import (
 	"errors"
+	"fmt"
 
 	usbprotocol "github.com/ntchjb/usbip-virtual-device/usb/protocol"
 )
@@ -12,9 +13,14 @@ var (
 )
 
 type DeviceRegistrar interface {
+	// Register a USB device and assign new BusID/Path to it
 	Register(device Device) error
+	// Get a USB device by bus ID
 	GetDevice(busID usbprotocol.BusID) (Device, error)
+	// Get all registered devices
 	GetAvailableDevices() []Device
+	// Close all registered devices
+	Close() error
 }
 
 type DeviceRegistrarConfig struct {
@@ -74,4 +80,14 @@ func (r *deviceRegistrarImpl) GetAvailableDevices() []Device {
 	}
 
 	return devices
+}
+
+func (r *deviceRegistrarImpl) Close() (err error) {
+	for _, device := range r.devices {
+		if deviceErr := device.Close(); deviceErr != nil {
+			err = fmt.Errorf("unable to close device %s: %w", device.GetBusID(), err)
+		}
+	}
+
+	return
 }

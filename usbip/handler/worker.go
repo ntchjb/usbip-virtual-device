@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/ntchjb/usbip-virtual-device/usb"
 	"github.com/ntchjb/usbip-virtual-device/usbip/protocol/command"
+	"github.com/ntchjb/usbip-virtual-device/usbip/stream"
 )
 
 const (
@@ -194,10 +196,16 @@ func (p *workerPoolImpl) Start() error {
 				}
 
 				p.logger.Debug("Replying RetSubmit", "data", urbRet)
-				if err := urbRet.CmdHeader.Encode(p.replyWriter); err != nil {
+				// Write to buffer first to make it atomic,
+				// so that header part is next to the content part, not be shuffled with others.
+				buf := new(bytes.Buffer)
+				if err := urbRet.CmdHeader.Encode(buf); err != nil {
 					p.logger.Error("unable to encode RetSubmit header to stream", "err", err, "seqNum", urbRet.SeqNum)
-				} else if err := urbRet.Encode(p.replyWriter); err != nil {
+				} else if err := urbRet.Encode(buf); err != nil {
 					p.logger.Error("unable to encode RetSubmit to stream", "err", err, "seqNum", urbRet.SeqNum)
+				}
+				if err := stream.Write(p.replyWriter, buf.Bytes()); err != nil {
+					p.logger.Error("unable to write RetSubmit to stream", "err", err, "seqNum", urbRet.SeqNum)
 				}
 			}
 		}()
@@ -211,12 +219,17 @@ func (p *workerPoolImpl) Start() error {
 
 			for urbRet := range p.unlinkQueue {
 				p.logger.Debug("Replying RetUnlink", "data", urbRet)
-				if err := urbRet.CmdHeader.Encode(p.replyWriter); err != nil {
+				// Write to buffer first to make it atomic
+				// so that header part is next to the content part, not be shuffled with others.
+				buf := new(bytes.Buffer)
+				if err := urbRet.CmdHeader.Encode(buf); err != nil {
 					p.logger.Error("unable to encode RetUnlink header to stream", "err", err, "seqNum", urbRet.SeqNum)
-				} else if err := urbRet.Encode(p.replyWriter); err != nil {
+				} else if err := urbRet.Encode(buf); err != nil {
 					p.logger.Error("unable to encode RetUnlink to stream", "err", err, "seqNum", urbRet.SeqNum)
 				}
-				p.logger.Debug("Unlink Replied", "urb", urbRet)
+				if err := stream.Write(p.replyWriter, buf.Bytes()); err != nil {
+					p.logger.Error("unable to write RetUnlink to stream", "err", err, "seqNum", urbRet.SeqNum)
+				}
 			}
 		}()
 	}

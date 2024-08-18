@@ -30,4 +30,6 @@ type Device interface {
 	Process(data command.CmdSubmit) command.RetSubmit
 	// GetWorkerPoolProfile indicates how worker pool behave for this device, such as, set worker count to 1 to process URB requests in sequences
 	GetWorkerPoolProfile() WorkerPoolProfile
+	// Close device to release all associated resources
+	Close() error
 }

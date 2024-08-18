@@ -1,4 +1,4 @@
-package main
+package mouse
 
 import (
 	"bytes"
@@ -246,7 +246,7 @@ func (g *genericHIDMouseDevice) getStringDescriptor(index uint8) descriptor.Stri
 	var content []uint16
 	switch index {
 	case 0: // For zero index, it return list of supported LangIDs
-		content = []uint16{descriptor.LangIDEnglishUSA}
+		content = []uint16{uint16(descriptor.LANGID_ENGLISH_UNITED_STATES)}
 	case 1: // Manufacturer
 		content = utf16.Encode([]rune("ntch.dev"))
 	case 2: // Product
@@ -393,4 +393,9 @@ func (g *genericHIDMouseDevice) proceeHIDData(_ command.CmdSubmit) ([]byte, erro
 	g.state = (g.state + 1) % 10
 
 	return buf, nil
+}
+
+func (g *genericHIDMouseDevice) Close() error {
+	// We have nothing to clear
+	return nil
 }

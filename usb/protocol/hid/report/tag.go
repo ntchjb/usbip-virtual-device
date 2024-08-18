@@ -29,7 +29,7 @@ const (
 	HID_REPORT_TAG_UNIT             HIDReportTag = HIDReportTag(uint8(0b0110<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
 	HID_REPORT_TAG_REPORT_SIZE      HIDReportTag = HIDReportTag(uint8(0b0111<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
 	HID_REPORT_TAG_REPORT_ID        HIDReportTag = HIDReportTag(uint8(0b1000<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
-	HID_REPORT_TAG_REOPORT_COUNT    HIDReportTag = HIDReportTag(uint8(0b1001<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
+	HID_REPORT_TAG_REPORT_COUNT     HIDReportTag = HIDReportTag(uint8(0b1001<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
 	HID_REPORT_TAG_PUSH             HIDReportTag = HIDReportTag(uint8(0b1010<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
 	HID_REPORT_TAG_POP              HIDReportTag = HIDReportTag(uint8(0b1011<<4) | (uint8(HID_REPORT_TYPE_GLOBAL) << 2))
 
@@ -64,7 +64,7 @@ var (
 		HID_REPORT_TAG_UNIT:             "Unit",
 		HID_REPORT_TAG_REPORT_SIZE:      "Report Size",
 		HID_REPORT_TAG_REPORT_ID:        "Report ID",
-		HID_REPORT_TAG_REOPORT_COUNT:    "Report Count",
+		HID_REPORT_TAG_REPORT_COUNT:     "Report Count",
 		HID_REPORT_TAG_PUSH:             "Push",
 		HID_REPORT_TAG_POP:              "Pop",
 

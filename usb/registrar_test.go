@@ -17,7 +17,9 @@ func TestRegistrar(t *testing.T) {
 	device3 := usb.NewMockDevice(ctrl)
 	device1.EXPECT().SetBusID(uint(1), uint(1)).Return()
 	device1.EXPECT().GetBusID().Return(protocol.BusID{0x01, 0x02, 0x03})
+	device1.EXPECT().Close().Return(nil)
 	device2.EXPECT().SetBusID(uint(1), uint(2)).Return()
+	device2.EXPECT().Close().Return(nil)
 	device2.EXPECT().GetBusID().Return(protocol.BusID{0x01, 0x02, 0x04})
 
 	config := usb.DeviceRegistrarConfig{
@@ -48,4 +50,7 @@ func TestRegistrar(t *testing.T) {
 	actualDevice3, err := registrar.GetDevice(protocol.BusID{0x01, 0x02, 0x05})
 	assert.ErrorIs(t, err, usb.ErrDeviceNotFound)
 	assert.Equal(t, nil, actualDevice3)
+
+	err = registrar.Close()
+	assert.NoError(t, err)
 }

@@ -79,7 +79,8 @@ type RetSubmit struct {
 	StartFrame uint32
 	// number of ISO packets; shall be set to 0xffffffff if not ISO transfer
 	NumberOfPackets uint32
-	ErrorCount      uint32
+	// number of ISO packet errors
+	ErrorCount uint32
 	// padding, shall be set to 0
 	Padding uint64
 	// direction IN -> Length = len(ActualLength),

@@ -93,11 +93,11 @@ var (
 			}
 			return strings.TrimSpace(builder.String())
 		},
-		HID_REPORT_TAG_REPORT_SIZE:   displayUintData,
-		HID_REPORT_TAG_REPORT_ID:     displayUintData,
-		HID_REPORT_TAG_REOPORT_COUNT: displayUintData,
-		HID_REPORT_TAG_PUSH:          func(globalItem HIDReportGlobalState, item []byte) string { return "" },
-		HID_REPORT_TAG_POP:           func(globalItem HIDReportGlobalState, item []byte) string { return "" },
+		HID_REPORT_TAG_REPORT_SIZE:  displayUintData,
+		HID_REPORT_TAG_REPORT_ID:    displayUintData,
+		HID_REPORT_TAG_REPORT_COUNT: displayUintData,
+		HID_REPORT_TAG_PUSH:         func(globalItem HIDReportGlobalState, item []byte) string { return "" },
+		HID_REPORT_TAG_POP:          func(globalItem HIDReportGlobalState, item []byte) string { return "" },
 		HID_REPORT_TAG_USAGE: func(globalState HIDReportGlobalState, item []byte) string {
 			usagePageID, usageID := usage.ParseUsagePageID(globalState.UsagePage, item)
 			return usage.IndexedUsageTable.GetUsageName(usagePageID, usageID)
